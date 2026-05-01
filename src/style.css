@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+/* Keep modals accessible on smaller screens by enabling vertical scroll. */
+.modal-backdrop,
+.modal-bg,
+.wm-modal-overlay,
+.wm-notice-overlay,
+.fixed.inset-0[class*='justify-center'] {
+	overflow-y: scroll;
+	overscroll-behavior: contain;
+	-webkit-overflow-scrolling: touch;
+}
+
+.modal-box,
+.modal-sheet,
+.del-modal,
+.wm-modal,
+.wm-notice-card,
+.fixed.inset-0[class*='justify-center'] > div {
+	max-height: calc(100vh - 2rem);
+	margin-block: auto;
+}
+
+.modal-box,
+.modal-sheet,
+.del-modal,
+.wm-modal,
+.wm-notice-card {
+	overflow-x: hidden;
+	overflow-y: scroll;
+	scrollbar-gutter: stable;
+	scrollbar-width: auto;
+	scrollbar-color: #1b5e20 #d3e3d3;
+}
+
+.modal-box::-webkit-scrollbar,
+.modal-sheet::-webkit-scrollbar,
+.del-modal::-webkit-scrollbar,
+.wm-modal::-webkit-scrollbar,
+.wm-notice-card::-webkit-scrollbar {
+	width: 12px;
+}
+
+.modal-box::-webkit-scrollbar-track,
+.modal-sheet::-webkit-scrollbar-track,
+.del-modal::-webkit-scrollbar-track,
+.wm-modal::-webkit-scrollbar-track,
+.wm-notice-card::-webkit-scrollbar-track {
+	background: #d3e3d3;
+	border-radius: 9999px;
+}
+
+.modal-box::-webkit-scrollbar-thumb,
+.modal-sheet::-webkit-scrollbar-thumb,
+.del-modal::-webkit-scrollbar-thumb,
+.wm-modal::-webkit-scrollbar-thumb,
+.wm-notice-card::-webkit-scrollbar-thumb {
+	background: linear-gradient(180deg, #2e7d32, #1b5e20);
+	border-radius: 9999px;
+	border: 2px solid #d3e3d3;
+}
+
+.modal-box::-webkit-scrollbar-thumb:hover,
+.modal-sheet::-webkit-scrollbar-thumb:hover,
+.del-modal::-webkit-scrollbar-thumb:hover,
+.wm-modal::-webkit-scrollbar-thumb:hover,
+.wm-notice-card::-webkit-scrollbar-thumb:hover {
+	background: linear-gradient(180deg, #388e3c, #145a18);
+}
+
+/* Style nested scrolling regions inside modals (Tailwind overflow-y-auto blocks). */
+.modal-box [class*='overflow-y-auto'],
+.modal-sheet [class*='overflow-y-auto'],
+.del-modal [class*='overflow-y-auto'],
+.wm-modal [class*='overflow-y-auto'],
+.wm-notice-card [class*='overflow-y-auto'] {
+	scrollbar-gutter: stable;
+	scrollbar-width: auto;
+	scrollbar-color: #1b5e20 #d3e3d3;
+}
+
+.modal-box [class*='overflow-y-auto']::-webkit-scrollbar,
+.modal-sheet [class*='overflow-y-auto']::-webkit-scrollbar,
+.del-modal [class*='overflow-y-auto']::-webkit-scrollbar,
+.wm-modal [class*='overflow-y-auto']::-webkit-scrollbar,
+.wm-notice-card [class*='overflow-y-auto']::-webkit-scrollbar {
+	width: 12px;
+}
+
+.modal-box [class*='overflow-y-auto']::-webkit-scrollbar-track,
+.modal-sheet [class*='overflow-y-auto']::-webkit-scrollbar-track,
+.del-modal [class*='overflow-y-auto']::-webkit-scrollbar-track,
+.wm-modal [class*='overflow-y-auto']::-webkit-scrollbar-track,
+.wm-notice-card [class*='overflow-y-auto']::-webkit-scrollbar-track {
+	background: #d3e3d3;
+	border-radius: 9999px;
+}
+
+.modal-box [class*='overflow-y-auto']::-webkit-scrollbar-thumb,
+.modal-sheet [class*='overflow-y-auto']::-webkit-scrollbar-thumb,
+.del-modal [class*='overflow-y-auto']::-webkit-scrollbar-thumb,
+.wm-modal [class*='overflow-y-auto']::-webkit-scrollbar-thumb,
+.wm-notice-card [class*='overflow-y-auto']::-webkit-scrollbar-thumb {
+	background: linear-gradient(180deg, #2e7d32, #1b5e20);
+	border-radius: 9999px;
+	border: 2px solid #d3e3d3;
+}

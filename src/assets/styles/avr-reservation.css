@@ -1,0 +1,242 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+
+/* ── TOKENS ───────────────────────────────────────── */
+.reservation-root {
+  --ink: #0d2b0f;
+  --ink-2: #1b5e20;
+  --gold: #f9a825;
+  --border: rgba(13, 43, 15, 0.09);
+  --shadow: 0 2px 20px rgba(13, 43, 15, 0.07);
+  min-height: 100vh;
+  background: #f5f3ef;
+  font-family: 'Poppins', sans-serif;  color: var(--ink);
+  padding: 32px 36px 64px;
+}
+
+/* ── HEADER ───────────────────────────────────────── */
+
+.btn-actions .btn-confirm {
+  width: 50px;
+  padding: 20px;
+  background: #9a3412;
+}
+.reservation-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 32px; gap: 16px; flex-wrap: wrap; }
+.header-breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(13, 43, 15, 0.4); margin-bottom: 8px; }
+.header-breadcrumb svg { width: 12px; }
+.header-title {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-weight: 900;
+  margin: 0 0 12px; 
+  letter-spacing: -0.03em;
+  position: relative; 
+  display: inline-block; 
+}
+.header-title::after {
+  content: "";
+  position: absolute;
+  bottom: -3px; 
+  left: 0;
+  width: 150px; 
+  height: 4px; 
+  background: linear-gradient(90deg, #0d2b0f 0%, #1b5e20 20%, #f9a825 100%);
+  border-radius: 2px;
+}
+.header-sub { font-size: 0.9rem; color: rgba(13, 43, 15, 0.45); margin: 0; }
+.header-right { display: flex; gap: 12px; }
+.date-badge { display: flex; align-items: center; gap: 7px; padding: 8px 14px; background: white; border: 1px solid var(--border); border-radius: 10px; font-size: 0.73rem; font-weight: 600; color: rgba(13,43,15,0.55); box-shadow: var(--shadow); }
+.date-badge svg { width: 14px; }
+.export-btn { display: flex; align-items: center; gap: 8px; padding: 9px 18px; background: var(--ink); color: white; border-radius: 10px; font-size: 0.73rem; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.2s; border: none; }
+.export-btn:hover { background: var(--ink-2); transform: translateY(-1px); }
+
+/* ── KPI CARDS ────────────────────────────────────── */
+.reservation-kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.reservation-kpi-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 20px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 14px; position: relative; overflow: hidden; transition: 0.25s; }
+.reservation-kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(13, 43, 15, 0.12); }
+.reservation-kpi-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.reservation-kpi-icon svg { width: 20px; }
+.reservation-kpi-label { display: block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: rgba(13, 43, 15, 0.45); margin-bottom: 4px; }
+.reservation-kpi-value { font-size: 1.55rem; font-weight: 900; line-height: 1; }
+.reservation-kpi-delta { font-size: 0.68rem; font-weight: 800; }
+.reservation-kpi-delta--up { color: #1b5e20; }
+.reservation-kpi-delta--down { color: #c62828; }
+.reservation-kpi-sparkline { position: absolute; bottom: 0; right: 0; width: 90px; height: 40px; opacity: 0.4; }
+
+/* ── PANELS & TABLES ──────────────────────────────── */
+.main-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+.panel { background: white; border: 1px solid var(--border); border-radius: 20px; padding: 24px; box-shadow: var(--shadow); margin-bottom: 20px; }
+.panel-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.panel-title { font-size: 1.1rem; font-weight: 900; margin: 0 0 4px; color: var(--ink); }
+.panel-sub { font-size: 0.8rem; color: rgba(13, 43, 15, 0.4); margin: 0; }
+
+.panel-head--center {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.text-center { text-align: center; }
+
+.report-table { width: 100%; border-collapse: collapse; }
+.report-table th { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; color: rgba(13, 43, 15, 0.4); padding-bottom: 12px; text-align: start; border-bottom: 1px solid var(--border); }
+.report-table td { padding: 13px 12px 13px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.rank { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; font-size: 0.7rem; font-weight: 900; background: #f0ede7; }
+.rank--1 { background: #f9a825; color: #0d2b0f; }
+.rank--2 { background: #e5e7eb; }
+.rank--3 { background: #ffedd5; color: #9a3412; }
+.name-cell { font-weight: 700; }
+.floor-tag { font-size: 0.8rem; font-weight: 800; background: rgba(27, 94, 32, 0.08); color: var(--ink-2); padding: 2px 7px; border-radius: 5px; }
+
+.text-right { text-align: right; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 1rem; opacity: 0.5; transition: 0.2s; }
+.icon-btn:hover { opacity: 1; transform: scale(1.1); }
+
+/* ── CHARTS ───────────────────────────────────────── */
+.chart-tabs { display: flex; gap: 4px; background: #f0ede7; border-radius: 10px; padding: 3px; }
+.chart-tab { padding: 5px 12px; border: none; border-radius: 7px; background: transparent; font-size: 0.7rem; font-weight: 700; color: rgba(13, 43, 15, 0.45); cursor: pointer; transition: 0.2s; }
+.chart-tab--active { background: white; color: var(--ink); box-shadow: 0 1px 6px rgba(13, 43, 15, 0.1); }
+
+.bar-chart { display: flex; gap: 12px; height: 200px; margin-top: 20px; }
+.bar-grid { display: flex; flex-direction: column; justify-content: space-between; padding-bottom: 24px; }
+.bar-grid-label { font-size: 0.8rem; color: rgba(13, 43, 15, 0.3); }
+.bars-wrap { display: flex; align-items: flex-end; gap: 10px; flex: 1; padding-bottom: 24px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 6px; position: relative; }
+.bar { width: 100%; background: var(--ink); border-radius: 6px 6px 2px 2px; min-height: 4px; transition: height 0.5s ease; }
+.bar--highlight { background: var(--gold); }
+.bar-label { font-size: 0.62rem; font-weight: 700; color: rgba(13, 43, 15, 0.4); }
+
+/* ── DONUT ────────────────────────────────────────── */
+.donut-area { display: flex; align-items: center; gap: 24px; flex-direction: column; }
+.donut-svg { width: 180px; height: 180px; }
+.donut-segment { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+.donut-legend { width: 100%; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.legend-row { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; width: fit-content; min-width: 140px;}
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+.legend-label { flex: 1; font-weight: 600; }
+.legend-pct { font-weight: 800; color: rgba(13, 43, 15, 0.5); }
+
+/* ── PANEL FOOTER ─────────────────────────────────── */
+.panel-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.add-section-btn {
+  width: 100%; padding: 14px; background: transparent; border: 1px dashed var(--border);
+  border-radius: 12px; color: rgba(13, 43, 15, 0.5); font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.05em; font-size: 0.7rem; cursor: pointer; transition: 0.3s;
+}
+.add-section-btn:hover { background: #0d2b0f; border-color: var(--ink-2); color: white; }
+
+/* ── ANIMATIONS ────────────────────────────────────── */
+.table-row-animate {
+  animation: tableRowIn 0.4s ease-out forwards;
+}
+
+@keyframes tableRowIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── RESPONSIVE ───────────────────────────────────── */
+@media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .kpi-strip { grid-template-columns: 1fr; } }
+
+
+
+
+/* PAGE INTRO */
+
+.intro-header {
+  opacity: 0;
+  transform: translateY(-20px);
+  animation: headerSlide 0.7s ease forwards;
+}
+
+@keyframes headerSlide {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.intro-title {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: titleFade 0.6s ease forwards;
+  animation-delay: .2s;
+}
+
+@keyframes titleFade {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-intro-enter-from {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.page-intro-enter-active {
+  transition: all 0.6s ease;
+}
+
+.page-intro-enter-to {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reservation-kpi-card {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: kpiReveal 0.5s ease forwards;
+}
+
+@keyframes kpiReveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bar {
+  transform-origin: bottom;
+  animation: barGrow 0.8s ease forwards;
+  transform: scaleY(0);
+}
+
+@keyframes barGrow {
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.donut-segment {
+  animation: donutDraw 1s ease forwards;
+  opacity: 0;
+}
+
+@keyframes donutDraw {
+  from {
+    stroke-dashoffset: 377;
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.panel {
+  opacity: 0;
+  transform: translateY(25px);
+  animation: panelFade 0.6s ease forwards;
+}
+
+.panel:nth-child(1){animation-delay:.1s;}
+.panel:nth-child(2){animation-delay:.2s;}
+.panel:nth-child(3){animation-delay:.3s;}
+
+@keyframes panelFade {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

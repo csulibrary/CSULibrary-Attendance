@@ -1,0 +1,16 @@
+@import './base.css';
+
+/* Remove all layout restrictions so Tailwind can handle it */
+#app {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: block; /* Ensures it's not fighting with old Flexbox/Grid centering */
+}
+
+/* Ensure the body doesn't have any hidden centering from the boilerplate */
+body {
+  margin: 0;
+  padding: 0;
+  display: block;
+}

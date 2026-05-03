@@ -16,7 +16,6 @@ import SearchRecord from '@/views/Admin/AttendanceManagement/AttendanceTabs/Sear
 import VisitorAttendance from '@/views/Admin/AttendanceManagement/AttendanceTabs/VisitorAttendance.vue'
 import UsersManagement from '@/views/Admin/AdminManagement/UsersManagement.vue'
 import ActivateDeactivate from '@/views/Admin/AdminManagement/ActivateDeactivate.vue'
-import ManageAssignation from '@/views/Admin/AdminManagement/ManageAssignation.vue'
 import ManagePermission from '@/views/Admin/AdminManagement/ManagePermission.vue'
 import ManageRoles from '@/views/Admin/AdminManagement/ManageRoles.vue'
 import ViewUsers from '@/views/Admin/AdminManagement/ViewUsers.vue'
@@ -27,7 +26,7 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.pBASE_URL),
   routes: [
     { path: '/', name: 'login', component: Login },
-    { path: '/admin/signin', name: 'signin', component: Signin },
+    { path: '/signin', name: 'signin', component: Signin },
 
     //sidebars
     { path: '/admin', name: 'admin', component: Dashboard },
@@ -47,7 +46,6 @@ const router = createRouter({
     { path: '/admin/management/view-users', name: 'admin-management-view', component: ViewUsers  },    
     { path: '/admin/management/activation', name: 'admin-management-activation', component: ActivateDeactivate  }, 
     { path: '/admin/management/roles', name: 'admin-management-roles', component: ManageRoles  }, 
-    { path: '/admin/management/assignation', name: 'admin-management-assignation', component: ManageAssignation  }, 
     { path: '/admin/management/permission', name: 'admin-management-permission', component: ManagePermission  }, 
     { path: '/admin/settings/backup', name: 'admin-settings-backup', component: BackupSettings }, 
     { path: '/admin/attendance/report-test', name: 'attendance-report-test', component: ReportPage }, 

@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { computed, watch } from 'vue'
-import Navbar from './components/Navbar.vue'
-import Footer from './components/Footer.vue'
 import ModalRBAC from '@/components/ModalRBAC.vue'
 import { useRBACModal } from '@/composables/useRBACModal'
 

@@ -157,13 +157,16 @@ export function useChartData() {
    * Used on: PreviewByCollege
    */
   function buildYearLevelBar(rows: RawAttendanceRow[]): BarChartData {
-    const byYL   = groupBy(rows, r => `Year ${r.students?.year_level ?? '?'}`)
-    const labels = ['Year 1','Year 2','Year 3','Year 4','Year 5'].filter(l => byYL[l])
+    const labels = ['Year 1','Year 2','Year 3','Year 4','Year 5']
+    const counts = labels.map((l) => {
+      const yearNum = Number(l.split(' ')[1])
+      return rows.filter(r => r.students?.year_level === yearNum).length
+    })
     return {
       labels,
       datasets: [{
         label:           'Visits',
-        data:            labels.map(l => byYL[l]?.length ?? 0),
+        data:            counts,
         backgroundColor: CHART_COLORS.green[2],
         borderRadius:    4,
       }],
@@ -202,17 +205,17 @@ export function useChartData() {
    * Used on: PreviewByCollege
    */
   function buildYearLevelHourlyLine(rows: RawAttendanceRow[]): LineChartData {
-    const byYL   = groupBy(rows, r => `Year ${r.students?.year_level ?? '?'}`)
-    const labels = ['Year 1','Year 2','Year 3','Year 4','Year 5'].filter(l => byYL[l])
+    const labels = ['Year 1','Year 2','Year 3','Year 4','Year 5']
 
     return {
       labels: ACTIVE_HOURS.map(hourLabel),
       datasets: labels.map((yl, i) => {
+        const yearNum = Number(yl.split(' ')[1])
         const color = CHART_COLORS.green[i % CHART_COLORS.green.length] ?? CHART_COLORS.green[0]
         return {
           label:           yl,
           data:            ACTIVE_HOURS.map(h =>
-            (byYL[yl] ?? []).filter(r => new Date(r.time_in).getHours() === h).length
+            rows.filter(r => r.students?.year_level === yearNum && new Date(r.time_in).getHours() === h).length
           ),
           borderColor:     color,
           backgroundColor: color + '28',
@@ -225,23 +228,22 @@ export function useChartData() {
   }
 
   /**
-   * Gender pie chart data (Female / Male / Other).
+   * Gender pie chart data (Female / Male).
    * Used on: PreviewByCollege
    */
   function buildGenderPie(rows: RawAttendanceRow[]): PieChartData {
     const female = rows.filter(r => r.students?.gender?.toLowerCase() === 'female').length
     const male   = rows.filter(r => r.students?.gender?.toLowerCase() === 'male').length
-    const other  = rows.length - female - male
 
-    const labels = other > 0 ? ['Female', 'Male', 'Other/Unknown'] : ['Female', 'Male']
-    const data   = other > 0 ? [female, male, other] : [female, male]
-    const colors = [CHART_COLORS.female, CHART_COLORS.male, CHART_COLORS.other]
+    const labels = ['Female', 'Male']
+    const data   = [female, male]
+    const colors = [CHART_COLORS.female, CHART_COLORS.male]
 
     return {
       labels,
       datasets: [{
         data,
-        backgroundColor: colors.slice(0, labels.length),
+        backgroundColor: colors,
         borderColor:     '#ffffff',
         borderWidth:     2,
       }],

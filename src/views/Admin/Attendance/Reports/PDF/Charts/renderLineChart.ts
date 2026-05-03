@@ -35,7 +35,7 @@ Chart.register(
 // ── Palette ────────────────────────────────────────────────────────────────────
 
 export const LINE_COLORS = [
-  '#0d2b0f',
+  '#1b5e20',
   '#f9a825',
   '#1565c0',
   '#c62828',
@@ -88,17 +88,17 @@ export async function renderLineChart(input: LineChartInput): Promise<string> {
     data: {
       labels:   input.labels,
       datasets: input.datasets.map((d, i) => {
-        const color = d.color ?? LINE_COLORS[i % LINE_COLORS.length]
+        const color = d.color ?? (LINE_COLORS[i % LINE_COLORS.length] as string)
         return {
-          label:           d.label,
-          data:            d.data,
-          borderColor:     color,
-          backgroundColor: color + '28',   // ~16% opacity fill
-          fill:            d.fill ?? (input.datasets.length === 1),
-          tension:         0.35,
-          pointRadius:     4,
+          label:            d.label,
+          data:             d.data,
+          borderColor:      color,
+          backgroundColor:  color + '28',
+          fill:             d.fill ?? (input.datasets.length === 1),
+          tension:          0.35,
+          pointRadius:      4,
           pointHoverRadius: 6,
-          borderWidth:     2.5,
+          borderWidth:      2.5,
         }
       }),
     },
@@ -106,8 +106,22 @@ export async function renderLineChart(input: LineChartInput): Promise<string> {
       animation:  false,
       responsive: false,
       plugins: {
-        legend:  { display: input.datasets.length > 1, position: 'top' },
-        title:   { display: !!input.title, text: input.title ?? '', font: { size: 14, weight: 'bold' } },
+        legend: {
+          // Always show the legend for line charts — the label IS the series
+          // identifier (program name, year level, etc.) and must be visible.
+          display:  true,
+          position: 'top',
+          labels: {
+            font:     { size: 11 },
+            padding:  12,
+            boxWidth: 14,
+          },
+        },
+        title: {
+          display: !!input.title,
+          text:    input.title ?? '',
+          font:    { size: 14, weight: 'bold' },
+        },
         tooltip: { enabled: false },
       },
       scales: {
@@ -120,13 +134,16 @@ export async function renderLineChart(input: LineChartInput): Promise<string> {
           beginAtZero: true,
           grid:        { color: 'rgba(0,0,0,0.06)' },
           title:       { display: !!input.yLabel, text: input.yLabel ?? '' },
+          ticks:       { precision: 0 },
         },
       },
       layout: { padding: { top: 10, bottom: 10, left: 8, right: 8 } },
     },
   })
 
-  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  // Reliable paint cycle — setTimeout(50ms) is more dependable than a single
+  // requestAnimationFrame when Chart.js animation is disabled.
+  await new Promise<void>((resolve) => setTimeout(resolve, 50))
 
   const base64 = canvas.toDataURL('image/png')
   chart.destroy()

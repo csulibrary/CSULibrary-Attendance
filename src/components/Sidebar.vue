@@ -50,7 +50,8 @@
         class="w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-200 outline-none"
       >
         <span
-          class="min-w-[32px] flex items-center justify-center transition-colors duration-200"
+          <span
+  class="min-w-[32px] flex items-center justify-center [&>svg]:w-5 [&>svg]:h-5 [&>svg]:stroke-[1.8]"
           :class="isActiveRoute(item.route) ? 'text-[#062009]' : 'text-[#f9a825]'"
           v-html="item.icon"
         ></span>
@@ -155,7 +156,7 @@ function goTo(path: string) {
 
 async function handleLogout() {
   await supabase.auth.signOut()
-  router.push('/admin/login')
+  router.push('/')
 }
 
 const menuItems = [
@@ -163,11 +164,8 @@ const menuItems = [
     name: 'DASHBOARD',
     label: 'Dashboard',
     route: '/admin',
-    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1"/>
-      <rect x="14" y="3" width="7" height="7" rx="1"/>
-      <rect x="3" y="14" width="7" height="7" rx="1"/>
-      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM3 21h8v-6H3v6zM13 3v6h8V3h-8z"/>
     </svg>`,
   },
 
@@ -175,64 +173,88 @@ const menuItems = [
     name: 'ADD EVENT',
     label: 'Add Event',
     route: '/admin/event',
-    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="5" width="18" height="16" rx="2"/>
+      <line x1="16" y1="3" x2="16" y2="7"/>
+      <line x1="8" y1="3" x2="8" y2="7"/>
+      <line x1="3" y1="11" x2="21" y2="11"/>
+      <line x1="12" y1="14" x2="12" y2="18"/>
+      <line x1="10" y1="16" x2="14" y2="16"/>
     </svg>`,
   },
 
-    {
-    name: 'SETTINGS',
-    label: 'Settings',
+  {
+    name: 'IMPORT RECORDS',
+    label: 'Import Records',
+    route: '/admin/attendance/import',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 3v12"/>
+      <path d="M8 11l4 4 4-4"/>
+      <rect x="4" y="17" width="16" height="4" rx="1"/>
+    </svg>`,
+  },
+
+  {
+    name: 'ATTENDANCE OVERVIEW',
+    label: 'Attendance Overview',
+    route: '/admin/attendance',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="3 17 9 11 13 15 21 7"/>
+      <polyline points="14 7 21 7 21 14"/>
+    </svg>`,
+  },
+
+  {
+    name: 'PAGE SETTINGS',
+    label: 'Page Settings',
     route: '/admin/attendance/settings',
-    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <polyline points="16 11 18 13 22 9"/>
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0A1.7 1.7 0 0 0 10 3.2V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z"/>
     </svg>`,
   },
 
   {
-    name: 'REPORTS',
-    label: 'Reports',
+    name: 'REPORT & ANALYTICS',
+    label: 'Report & Analytics',
     route: '/admin/attendance/report',
-    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-    <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/>
-  </svg>`,
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="12" y1="20" x2="12" y2="10"/>
+      <line x1="18" y1="20" x2="18" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="16"/>
+    </svg>`,
   },
 
   {
-    name: 'STUDENTS',
-    label: 'Students',
-    route: '/admin/attendance/students',
-    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="2" y1="12" x2="22" y2="12"/>
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    name: 'SEARCH ATTENDANCE',
+    label: 'Search Attendance',
+    route: '/admin/attendance/logs',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
     </svg>`,
   },
 
-    {
-    name: 'LOGS',
-    label: 'Logs',
-    route: '/admin/attendance/logs',
-    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+  {
+    name: 'SEARCH STUDENTS',
+    label: 'Search Students',
+    route: '/admin/attendance/students',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      <path d="M17 11l2 2 4-4"/>
+      <path d="M5 21v-2a4 4 0 0 1 4-4h3"/>
     </svg>`,
   },
-      {
-    name: 'LOGS',
-    label: 'Logs',
-    route: '/admin/attendance/logs',
-    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+
+  {
+    name: 'MANAGE VISITORS',
+    label: 'Manage Visitors',
+    route: '/admin/attendance/visitors',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      <circle cx="17" cy="7" r="4"/>
+      <path d="M2 21v-2a4 4 0 0 1 4-4h6"/>
+      <path d="M14 21v-2a4 4 0 0 1 4-4h2"/>
     </svg>`,
   },
 ]

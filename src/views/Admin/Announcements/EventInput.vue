@@ -27,7 +27,7 @@
             >
               <span
                 class="cursor-pointer hover:text-[#0d2b0f] transition-colors"
-                @click="$router.push('/admin/announcement')"
+                @click="$router.push('/admin/event')"
                 >BACK</span
               >
               <svg
@@ -64,37 +64,13 @@
             <!-- MAIN CARD -->
             <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-200">
               <div class="space-y-6">
-                <!-- TYPE SELECTOR -->
-                <div>
-                  <label
-                    class="block text-sm font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1"
-                  >
-                    Type
-                  </label>
-                  <div class="flex gap-3">
-                    <button
-                      v-for="option in typeOptions"
-                      :key="option.value"
-                      type="button"
-                      @click="formData.type = option.value"
-                      :class="[
-                        'flex-1 py-3 rounded-xl font-bold text-sm border-2 transition-all',
-                        formData.type === option.value
-                          ? 'bg-[#0d2b0f] text-white border-[#0d2b0f]'
-                          : 'bg-gray-50 text-gray-500 border-gray-300 hover:border-[#2D7231] hover:text-[#2D7231]',
-                      ]"
-                    >
-                      {{ option.label }}
-                    </button>
-                  </div>
-                </div>
 
                 <!-- HEADLINE -->
                 <div>
                   <label
                     class="block text-sm font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1"
                   >
-                    Headline
+                    Title
                   </label>
                   <input
                     v-model="formData.title"
@@ -125,7 +101,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-200">
                 <label class="text-sm font-bold text-gray-700 uppercase mb-4 block">
-                  Publish Date
+                  Event's Date
                 </label>
                 <input
                   v-model="formData.datePublished"
@@ -298,7 +274,7 @@ const formData = ref({
   description: '',
   attachment: null as File | null,
   datePublished: today,
-  type: 'announcement' as 'announcement' | 'event' | 'news',
+  type: 'event',
   timeIn: '',
   timeOut: '',
 })
@@ -360,7 +336,7 @@ const loadForEdit = async (id: string) => {
   } catch (error) {
     console.error('Error loading record for edit:', error)
     showToast('Failed to load announcement', 'error')
-    setTimeout(() => router.push('/admin/announcement'), 600)
+    setTimeout(() => router.push('/admin/event'), 600)
   }
 }
 
@@ -435,14 +411,14 @@ const submitForm = async () => {
         ? 'Announcement updated successfully!'
         : 'Announcement published successfully!',
     )
-    setTimeout(() => router.push('/admin/announcement'), 400)
+    setTimeout(() => router.push('/admin/event'), 400)
   } catch (error) {
     console.error(error)
     showToast('Failed to publish announcement', 'error')
   }
 }
 
-const goBack = () => router.push('/admin/announcement')
+const goBack = () => router.push('/admin/event')
 
 onMounted(() => {
   const id = route.query.id

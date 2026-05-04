@@ -69,29 +69,47 @@ export function useReportData(supabase: SupabaseClient) {
 
   /**
    * Fetches distinct college and program values from the students table.
+   * Handles pagination to fetch all rows beyond Supabase's 1000-row limit.
    * Call once on mount in ReportPage.vue.
    */
   async function loadCollegesAndPrograms(): Promise<void> {
     isLoadingMeta.value = true
     metaError.value = null
     try {
-      const { data, error } = await supabase
-        .from('students')
-        .select('college, program')
-        .order('college')
-
-      if (error) throw error
-
       const collegeSet = new Set<string>()
       const programsMap: Record<string, Set<string>> = {}
+      let offset = 0
+      const pageSize = 1000
+      let hasMore = true
 
-      for (const row of data ?? []) {
-        const c = row.college?.trim()
-        const p = row.program?.trim()
-        if (!c) continue
-        collegeSet.add(c)
-        if (!programsMap[c]) programsMap[c] = new Set()
-        if (p) programsMap[c].add(p)
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('students')
+          .select('college, program')
+          .order('college')
+          .range(offset, offset + pageSize - 1)
+
+        if (error) throw error
+
+        if (!data || data.length === 0) {
+          hasMore = false
+          break
+        }
+
+        for (const row of data) {
+          const c = row.college?.trim()
+          const p = row.program?.trim()
+          if (!c) continue
+          collegeSet.add(c)
+          if (!programsMap[c]) programsMap[c] = new Set()
+          if (p) programsMap[c].add(p)
+        }
+
+        if (data.length < pageSize) {
+          hasMore = false
+        }
+
+        offset += pageSize
       }
 
       colleges.value = [...collegeSet].sort()

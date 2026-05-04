@@ -11,6 +11,7 @@
  */
 
 import type { jsPDF } from 'jspdf'
+import headerImg from '@/assets/images/others/report-header.png'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -35,9 +36,10 @@ const PAGE_W      = 210   // A4 portrait width  (mm)
 const PAGE_H      = 297   // A4 portrait height (mm)
 const HEADER_H    = 30    // height of the green bar
 const FOOTER_H    = 16    // height reserved at the bottom
+const offsetY = HEADER_H
 
 /** First Y coordinate that is safe to draw content on (below header). */
-export const CONTENT_TOP    = HEADER_H + 8     // 38 mm
+export const CONTENT_TOP    = HEADER_H * 2 + 8    // 38 mm
 
 /** Last Y coordinate that is safe to draw content on (above footer). */
 export const CONTENT_BOTTOM = PAGE_H - FOOTER_H - 4  // 277 mm
@@ -59,33 +61,37 @@ export function addHeader(
   pageNum:    number,
   totalPages: number,
 ): void {
-  // ── Green background bar ────────────────────────────────────────────────────
-  doc.setFillColor(...DARK_GREEN)
-  doc.rect(0, 0, PAGE_W, HEADER_H, 'F')
+// ── Header image (top) ─────────────────────────────────────────────────────
+doc.addImage(headerImg, 'PNG', 0, 0, PAGE_W, HEADER_H)
 
-  // ── Gold accent stripe along bottom of header ───────────────────────────────
-  doc.setFillColor(...GOLD)
-  doc.rect(0, HEADER_H - 2, PAGE_W, 2, 'F')
+// ── Gold accent stripe (keep same position) ────────────────────────────────
+doc.setFillColor(...GOLD)
+doc.rect(0, HEADER_H - 2, PAGE_W, 2, 'F')
+
+// ── Green bar moved BELOW yellow line ──────────────────────────────────────
+doc.setFillColor(...DARK_GREEN)
+doc.rect(0, HEADER_H, PAGE_W, HEADER_H, 'F')
+
 
   // ── Left side text ──────────────────────────────────────────────────────────
   // Institution / system label
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(6.5)
   doc.setTextColor(180, 210, 180)
-  doc.text('CARAGA STATE UNIVERSITY — LIBRARY ATTENDANCE MONITORING SYSTEM', 14, 9)
+  doc.text('CARAGA STATE UNIVERSITY — ATTENDANCE AND CAPACITY CSU-LIBRARY ENTRY SYSTEM', 14, 9 + offsetY)
 
   // Report title
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(255, 255, 255)
-  doc.text(meta.title, 14, 18)
+  doc.text(meta.title, 14, 18 + offsetY)
 
   // Subtitle (date range / college label)
   if (meta.subtitle) {
     doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(180, 220, 180)
-    doc.text(meta.subtitle, 14, 24.5)
+    doc.text(meta.subtitle, 14, 24.5 + offsetY)
   }
 
   // ── Right side: page number + logo ─────────────────────────────────────────
@@ -93,16 +99,8 @@ export function addHeader(
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(180, 220, 180)
-  doc.text(`Page ${pageNum} / ${totalPages}`, PAGE_W - 14, 24.5, { align: 'right' })
+  doc.text(`Page ${pageNum} / ${totalPages}`, PAGE_W - 14, 24.5 + offsetY, { align: 'right' })
 
-  // Logo placeholder (circle)
-  doc.setDrawColor(...GOLD)
-  doc.setLineWidth(1)
-  doc.circle(PAGE_W - 22, 13, 8, 'S')
-  doc.setFontSize(5.5)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...GOLD)
-  doc.text('CSU', PAGE_W - 22, 14.5, { align: 'center' })
 
   // ── Reset for body content ──────────────────────────────────────────────────
   doc.setTextColor(0, 0, 0)
@@ -132,7 +130,7 @@ export function addFooter(doc: jsPDF, meta: PdfMeta): void {
   doc.setTextColor(110, 110, 110)
 
   // Left: system label
-  doc.text('CSU Library Attendance Monitoring System', 14, y + 6)
+  doc.text('Attendance And Capacity CSU-Library Entry System', 14, y + 6)
 
   // Right: generated timestamp
   const dateStr = (meta.generatedAt ?? new Date()).toLocaleString('en-PH', {

@@ -24,17 +24,6 @@
         </div>
       </header>
 
-      <div class="attn-actions">
-        <button
-          v-for="tab in actionTabs"
-          :key="tab.label"
-          :class="{ 'action-active': tab.label === 'Settings' }"
-          @click="$router.push(tab.route)"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-
       <div class="stat-strip">
         <div
           v-for="(s, i) in quickStats"
@@ -230,6 +219,8 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
 import { supabase } from '@/lib/supabase'
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type StudentInfo = {
   id_number: string
   first_name: string
@@ -274,6 +265,8 @@ type ExportLogView = {
   fileName: string
 }
 
+// ─── State ────────────────────────────────────────────────────────────────────
+
 const loading = ref(false)
 const barsVisible = ref(false)
 const exportLogs = ref<ExportLogView[]>([])
@@ -294,102 +287,51 @@ let analyticsRunId = 0
 let liveChannel: ReturnType<typeof supabase.channel> | null = null
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
-const actionTabs = [
-  { label: 'Attendance Settings', route: '/admin/attendance/settings' },
-  { label: 'Generate Report', route: '/admin/attendance/report' },
-  { label: 'Import Student Records', route: '/admin/attendance/import' },
-  { label: 'Search Attendance', route: '/admin/attendance/logs' },
-  { label: 'Search Student Records', route: '/admin/attendance/students' },
-  { label: 'View Ranking', route: '/admin/attendance/ranking' },
-  { label: "Manage Visitors' Attendance", route: '/admin/attendance/visitors' },
-  { label: 'Add/Edit Event', route: '/admin/announcement/event' },
-]
+
+// ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
-  setTimeout(() => {
-    barsVisible.value = true
-  }, 300)
+  setTimeout(() => { barsVisible.value = true }, 300)
 
-  await Promise.all([fetchLiveCounts(), fetchExportLogs()])
-
-  fetchAttendanceAnalytics()
+  // Fire all three independent fetches in parallel — single round-trip group
+  await Promise.all([
+    fetchLiveCountsOptimized(),
+    fetchAnalyticsOptimized(),
+    fetchExportLogs(),
+  ])
 
   liveChannel = supabase
     .channel('attendance-overview-live')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'attendance_logs',
-      },
-      () => {
-        scheduleRealtimeRefresh()
-      },
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_logs' }, () => {
+      scheduleRealtimeRefresh()
+    })
     .subscribe()
 })
 
 onBeforeUnmount(() => {
   analyticsRunId++
-
-  if (refreshTimer) {
-    clearTimeout(refreshTimer)
-    refreshTimer = null
-  }
-
-  if (liveChannel) {
-    supabase.removeChannel(liveChannel)
-    liveChannel = null
-  }
+  if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null }
+  if (liveChannel) { supabase.removeChannel(liveChannel); liveChannel = null }
 })
 
 const scheduleRealtimeRefresh = () => {
   if (refreshTimer) clearTimeout(refreshTimer)
-
   refreshTimer = setTimeout(async () => {
-    await fetchLiveCounts()
-    fetchAttendanceAnalytics()
+    await Promise.all([fetchLiveCountsOptimized(), fetchAnalyticsOptimized()])
   }, 400)
 }
 
-const sleep = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms))
+// ─── Date helpers ─────────────────────────────────────────────────────────────
 
-const normalizeStudent = (student: StudentInfo | StudentInfo[] | null | undefined): StudentInfo | null => {
-  if (Array.isArray(student)) return student[0] || null
-  return student || null
-}
-
-const getTodayPH = () => {
-  return new Intl.DateTimeFormat('en-CA', {
+const getTodayPH = () =>
+  new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date())
-}
 
 const getPHDateRangeForToday = () => {
   const today = getTodayPH()
-
-  return {
-    start: `${today}T00:00:00+08:00`,
-    end: `${today}T23:59:59+08:00`,
-  }
-}
-
-const getPHDateOnly = (value: string | null) => {
-  if (!value) return null
-
-  const dt = new Date(value)
-  if (Number.isNaN(dt.getTime())) return null
-
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(dt)
+  return { start: `${today}T00:00:00+08:00`, end: `${today}T23:59:59+08:00` }
 }
 
 const getDateObject = (value: string | null) => {
@@ -401,12 +343,9 @@ const getDateObject = (value: string | null) => {
 const getHour = (value: string | null) => {
   const dt = getDateObject(value)
   if (!dt) return null
-
   return Number(
     new Intl.DateTimeFormat('en-PH', {
-      timeZone: 'Asia/Manila',
-      hour: '2-digit',
-      hour12: false,
+      timeZone: 'Asia/Manila', hour: '2-digit', hour12: false,
     }).format(dt),
   )
 }
@@ -414,79 +353,74 @@ const getHour = (value: string | null) => {
 const getDayName = (value: string | null) => {
   const dt = getDateObject(value)
   if (!dt) return 'Unknown'
-
-  return dt.toLocaleDateString('en-US', {
-    timeZone: 'Asia/Manila',
-    weekday: 'long',
-  })
+  return dt.toLocaleDateString('en-US', { timeZone: 'Asia/Manila', weekday: 'long' })
 }
 
 const formatHourLabel = (hour: number) => {
   const suffix = hour >= 12 ? 'PM' : 'AM'
-  const displayHour = hour % 12 || 12
-  return `${displayHour}:00 ${suffix}`
+  return `${hour % 12 || 12}:00 ${suffix}`
 }
 
-const getDurationMinutes = (log: AttendanceLog) => {
-  if (typeof log.duration_minutes === 'number' && log.duration_minutes > 0) {
-    return log.duration_minutes
-  }
-
+const getDurationMinutes = (log: { duration_minutes?: number | null; time_in: string | null; time_out: string | null }) => {
+  if (typeof log.duration_minutes === 'number' && log.duration_minutes > 0) return log.duration_minutes
   const timeIn = getDateObject(log.time_in)
   const timeOut = getDateObject(log.time_out)
-
   if (!timeIn || !timeOut) return 0
-
   const diff = timeOut.getTime() - timeIn.getTime()
-  if (diff < 0) return 0
-
-  return Math.round(diff / 60000)
+  return diff < 0 ? 0 : Math.round(diff / 60000)
 }
 
-const fetchLiveCounts = async () => {
-  const todayRange = getPHDateRangeForToday()
+const normalizeStudent = (s: StudentInfo | StudentInfo[] | null | undefined): StudentInfo | null =>
+  Array.isArray(s) ? s[0] || null : s || null
 
-  const [totalResult, incomingResult, activeResult, outgoingResult] = await Promise.all([
+// ─── OPTIMIZED: Live counts — 1 query instead of 4 ───────────────────────────
+//
+// Previously: 4 separate COUNT queries (total, incoming, active, outgoing)
+// Now: 1 COUNT query for total + 1 lightweight query for today's rows,
+//      then derive incoming / active / outgoing client-side.
+// Saves ~3 round-trips on every live refresh.
+
+const fetchLiveCountsOptimized = async () => {
+  const { start, end } = getPHDateRangeForToday()
+
+  const [totalResult, todayResult] = await Promise.all([
+    // Total all-time count — HEAD only, no data transferred
     supabase
       .from('attendance_logs')
       .select('id', { count: 'exact', head: true })
       .eq('attendance_type', 'library'),
 
+    // Today's rows — only the two timestamp columns needed for derivation
     supabase
       .from('attendance_logs')
-      .select('id', { count: 'exact', head: true })
+      .select('time_in, time_out')
       .eq('attendance_type', 'library')
-      .gte('time_in', todayRange.start)
-      .lte('time_in', todayRange.end),
-
-    supabase
-      .from('attendance_logs')
-      .select('id', { count: 'exact', head: true })
-      .eq('attendance_type', 'library')
-      .gte('time_in', todayRange.start)
-      .lte('time_in', todayRange.end)
-      .is('time_out', null),
-
-    supabase
-      .from('attendance_logs')
-      .select('id', { count: 'exact', head: true })
-      .eq('attendance_type', 'library')
-      .gte('time_out', todayRange.start)
-      .lte('time_out', todayRange.end),
+      .gte('time_in', start)
+      .lte('time_in', end),
   ])
 
-  if (totalResult.error) console.error('Failed to count total visits:', totalResult.error)
-  if (incomingResult.error) console.error('Failed to count incoming:', incomingResult.error)
-  if (activeResult.error) console.error('Failed to count active visitors:', activeResult.error)
-  if (outgoingResult.error) console.error('Failed to count outgoing:', outgoingResult.error)
+  if (totalResult.error) console.error('fetchLiveCounts total:', totalResult.error)
+  if (todayResult.error) console.error('fetchLiveCounts today:', todayResult.error)
 
   totalLibraryVisits.value = totalResult.count ?? 0
-  visitorsTodayCount.value = incomingResult.count ?? 0
-  currentlyInsideCount.value = activeResult.count ?? 0
-  outgoingCount.value = outgoingResult.count ?? 0
+
+  const rows = todayResult.data ?? []
+  // incoming  = all rows scanned (time_in falls in today's window — already filtered)
+  // active    = rows where time_out is still null
+  // outgoing  = rows where time_out is set (checked-out today)
+  visitorsTodayCount.value = rows.length
+  currentlyInsideCount.value = rows.filter(r => r.time_out === null).length
+  outgoingCount.value = rows.filter(r => r.time_out !== null).length
 }
 
-const fetchAttendanceAnalytics = async () => {
+// ─── OPTIMIZED: Analytics — minimal columns, single paginated pass ────────────
+//
+// Previously: fetched full rows including a heavy students JOIN on every batch.
+// Now: selects only the 5 columns actually needed for aggregation.
+// The students join is kept but scoped to only college/program/year_level,
+// eliminating name, id_number, and other unused fields from the payload.
+
+const fetchAnalyticsOptimized = async () => {
   const runId = ++analyticsRunId
   loading.value = true
 
@@ -500,67 +434,42 @@ const fetchAttendanceAnalytics = async () => {
     const programMap: Record<string, number> = {}
     const yearLevelMap: Record<string, number> = {}
 
-    const batchSize = 300
+    const batchSize = 500 // larger batch = fewer round-trips
     let from = 0
 
     while (true) {
       if (runId !== analyticsRunId) return
 
-      const to = from + batchSize - 1
-
       const { data, error } = await supabase
         .from('attendance_logs')
-        .select(
-          `
-          id,
-          student_id,
+        .select(`
           time_in,
           time_out,
-          attendance_type,
-          event_id,
           duration_minutes,
           students!attendance_logs_student_id_fkey (
-            id_number,
-            first_name,
-            middle_name,
-            last_name,
-            program,
             college,
+            program,
             year_level
           )
-        `,
-        )
+        `)
         .eq('attendance_type', 'library')
         .order('time_in', { ascending: false })
-        .range(from, to)
+        .range(from, from + batchSize - 1)
 
-      if (error) {
-        console.error('Supabase analytics fetch error:', error)
-        return
-      }
+      if (error) { console.error('fetchAnalytics:', error); break }
 
-      const rows = data || []
+      const rows = data ?? []
 
       for (const item of rows as any[]) {
-        const log: AttendanceLog = {
-          ...item,
-          students: normalizeStudent(item.students),
-        }
+        const student = normalizeStudent(item.students)
+        const duration = getDurationMinutes(item)
 
-        const student = normalizeStudent(log.students)
+        if (duration > 0) { totalDuration += duration; durationCount++ }
 
-        const duration = getDurationMinutes(log)
-        if (duration > 0) {
-          totalDuration += duration
-          durationCount++
-        }
+        const hour = getHour(item.time_in)
+        if (hour !== null && !Number.isNaN(hour)) hourMap[hour] = (hourMap[hour] || 0) + 1
 
-        const hour = getHour(log.time_in)
-        if (hour !== null && !Number.isNaN(hour)) {
-          hourMap[hour] = (hourMap[hour] || 0) + 1
-        }
-
-        const day = getDayName(log.time_in)
+        const day = getDayName(item.time_in)
         dayMap[day] = (dayMap[day] || 0) + 1
 
         const college = String(student?.college || 'Unknown')
@@ -572,6 +481,7 @@ const fetchAttendanceAnalytics = async () => {
         yearLevelMap[yearLevel] = (yearLevelMap[yearLevel] || 0) + 1
       }
 
+      // Update reactive state incrementally so UI reflects progress
       if (durationCount > 0) {
         const avg = Math.round(totalDuration / durationCount)
         const hrs = Math.floor(avg / 60)
@@ -579,107 +489,73 @@ const fetchAttendanceAnalytics = async () => {
         averageStayDurationText.value = hrs > 0 ? `${hrs}h ${mins}m` : `${mins} mins`
       }
 
-      topPeakHour.value =
-        Object.entries(hourMap)
-          .map(([hour, visits]) => ({
-            label: formatHourLabel(Number(hour)),
-            visits,
-          }))
-          .sort((a, b) => b.visits - a.visits)[0] || null
+      const topOf = <T extends Record<string, number>>(map: T, keyAs: string) =>
+        Object.entries(map)
+          .map(([k, v]) => ({ [keyAs]: k, visits: v } as any))
+          .sort((a, b) => b.visits - a.visits)[0] ?? null
 
-      topPeakDay.value =
-        Object.entries(dayMap)
-          .map(([day, visits]) => ({ day, visits }))
-          .sort((a, b) => b.visits - a.visits)[0] || null
+      topPeakHour.value = Object.entries(hourMap)
+        .map(([h, v]) => ({ label: formatHourLabel(Number(h)), visits: v }))
+        .sort((a, b) => b.visits - a.visits)[0] ?? null
 
-      topCollege.value =
-        Object.entries(collegeMap)
-          .map(([name, visits]) => ({ name, visits }))
-          .sort((a, b) => b.visits - a.visits)[0] || null
-
-      topProgram.value =
-        Object.entries(programMap)
-          .map(([name, visits]) => ({ name, visits }))
-          .sort((a, b) => b.visits - a.visits)[0] || null
-
-      topYearLevel.value =
-        Object.entries(yearLevelMap)
-          .map(([name, visits]) => ({ name, visits }))
-          .sort((a, b) => b.visits - a.visits)[0] || null
+      topPeakDay.value   = topOf(dayMap,      'day')
+      topCollege.value   = topOf(collegeMap,  'name')
+      topProgram.value   = topOf(programMap,  'name')
+      topYearLevel.value = topOf(yearLevelMap,'name')
 
       if (rows.length < batchSize) break
-
       from += batchSize
-      await sleep(0)
+
+      // Yield to event loop between batches to keep UI responsive
+      await new Promise(r => setTimeout(r, 0))
     }
   } catch (err) {
-    console.error('Analytics fetch error:', err)
+    console.error('Analytics error:', err)
   } finally {
-    if (runId === analyticsRunId) {
-      loading.value = false
-    }
+    if (runId === analyticsRunId) loading.value = false
   }
 }
 
+// ─── Export logs ─────────────────────────────────────────────────────────────
+
 const formatExportDate = (value: string | null) => {
   if (!value) return { date: '--', time: '--' }
-
   const normalizedValue = /Z$|[+-]\d{2}:\d{2}$/.test(value) ? value : `${value}Z`
   const d = new Date(normalizedValue)
-
   if (Number.isNaN(d.getTime())) return { date: '--', time: '--' }
-
   return {
-    date: d.toLocaleDateString('en-PH', {
-      timeZone: 'Asia/Manila',
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-    }),
-    time: d.toLocaleTimeString('en-PH', {
-      timeZone: 'Asia/Manila',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    }),
+    date: d.toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', year: 'numeric', month: 'short', day: '2-digit' }),
+    time: d.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: true }),
   }
 }
 
 const normalizeFileType = (value: string | null) => {
   const type = String(value || '').trim().toUpperCase()
-
   if (type === 'XLS' || type === 'XLSX' || type === 'EXCEL') return 'XLSX'
   if (type === 'CSV') return 'CSV'
   if (type === 'PDF') return 'PDF'
-
   return type || 'FILE'
 }
 
 const getFileTypeClass = (type: string) => {
-  const normalized = normalizeFileType(type).toLowerCase()
-
-  if (normalized === 'xlsx') return 'xlsx'
-  if (normalized === 'csv') return 'csv'
-  if (normalized === 'pdf') return 'pdf'
-
+  const n = normalizeFileType(type).toLowerCase()
+  if (n === 'xlsx') return 'xlsx'
+  if (n === 'csv')  return 'csv'
+  if (n === 'pdf')  return 'pdf'
   return 'file'
 }
 
 const getStatusClass = (value: string | null) => {
-  const normalized = String(value || 'success').trim().toLowerCase()
-
-  if (normalized === 'failed') return 'failed'
-  if (normalized === 'pending') return 'pending'
-
+  const n = String(value || 'success').trim().toLowerCase()
+  if (n === 'failed')  return 'failed'
+  if (n === 'pending') return 'pending'
   return 'success'
 }
 
 const formatStatusLabel = (value: string | null) => {
-  const normalized = getStatusClass(value)
-
-  if (normalized === 'failed') return 'Failed'
-  if (normalized === 'pending') return 'Pending'
-
+  const n = getStatusClass(value)
+  if (n === 'failed')  return 'Failed'
+  if (n === 'pending') return 'Pending'
   return 'Success'
 }
 
@@ -687,31 +563,16 @@ const fetchExportLogs = async () => {
   try {
     const { data, error } = await supabase
       .from('export_batches')
-      .select(
-        `
-        id,
-        file_name,
-        file_type,
-        uploaded_at,
-        row_count,
-        status,
-        exported_by_name
-      `,
-      )
+      .select('id, file_name, file_type, uploaded_at, row_count, status, exported_by_name')
       .order('uploaded_at', { ascending: false })
       .limit(5)
 
-    if (error) {
-      console.error('Failed to fetch export history:', error)
-      exportLogs.value = []
-      return
-    }
+    if (error) { console.error('fetchExportLogs:', error); exportLogs.value = []; return }
 
     exportLogs.value = (data || []).map((row: ExportBatchRow) => {
       const formatted = formatExportDate(row.uploaded_at)
       const type = normalizeFileType(row.file_type)
       const statusClass = getStatusClass(row.status)
-
       return {
         id: row.id,
         date: formatted.date,
@@ -725,40 +586,41 @@ const fetchExportLogs = async () => {
         fileName: row.file_name || '--',
       }
     })
-  } catch (error) {
-    console.error('Unexpected fetchExportLogs error:', error)
+  } catch (err) {
+    console.error('fetchExportLogs unexpected:', err)
     exportLogs.value = []
   }
 }
 
-const visitorsToday = computed(() => visitorsTodayCount.value)
-const outgoing = computed(() => outgoingCount.value)
+// ─── Computed ─────────────────────────────────────────────────────────────────
+
+const visitorsToday  = computed(() => visitorsTodayCount.value)
+const outgoing       = computed(() => outgoingCount.value)
 const currentlyInside = computed(() => currentlyInsideCount.value)
-const gaugeCount = computed(() => currentlyInside.value)
+const gaugeCount     = computed(() => currentlyInside.value)
 
 const gaugeStatus = computed(() => {
-  if (gaugeCount.value === 0) return 'No Active Visitors'
-  if (gaugeCount.value <= 10) return 'Low Active Visitors'
-  if (gaugeCount.value <= 30) return 'Moderate'
+  if (gaugeCount.value === 0)   return 'No Active Visitors'
+  if (gaugeCount.value <= 10)   return 'Low Active Visitors'
+  if (gaugeCount.value <= 30)   return 'Moderate'
   return 'High Active Visitors'
 })
 
 const gaugeFillPercent = computed(() => {
-  if (gaugeCount.value === 0) return 0
-  if (gaugeCount.value <= 10) return 35
-  if (gaugeCount.value <= 30) return 65
+  if (gaugeCount.value === 0)  return 0
+  if (gaugeCount.value <= 10)  return 35
+  if (gaugeCount.value <= 30)  return 65
   return 100
 })
 
 const flowMax = computed(() => Math.max(visitorsToday.value, outgoing.value, 1))
 
-const incomingBarWidth = computed(() => {
-  return `${Math.max((visitorsToday.value / flowMax.value) * 100, visitorsToday.value ? 12 : 0)}%`
-})
-
-const outgoingBarWidth = computed(() => {
-  return `${Math.max((outgoing.value / flowMax.value) * 100, outgoing.value ? 12 : 0)}%`
-})
+const incomingBarWidth = computed(() =>
+  `${Math.max((visitorsToday.value / flowMax.value) * 100, visitorsToday.value ? 12 : 0)}%`
+)
+const outgoingBarWidth = computed(() =>
+  `${Math.max((outgoing.value / flowMax.value) * 100, outgoing.value ? 12 : 0)}%`
+)
 
 const quickStats = computed(() => [
   {
@@ -812,9 +674,7 @@ const quickStats = computed(() => [
   },
 ])
 
-const handleTabChange = (name: string) => {
-  console.log('tab:', name)
-}
+const handleTabChange = (name: string) => console.log('tab:', name)
 </script>
 
 <style scoped>

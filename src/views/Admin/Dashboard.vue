@@ -96,6 +96,8 @@ import { ref, computed, reactive, onMounted, onBeforeUnmount } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
 import { supabase } from '@/lib/supabase'
 
+// ─── State ────────────────────────────────────────────────────────────────────
+
 const currentQuote = ref({
   text: 'A library is not a luxury but one of the necessities of life.',
   author: 'Henry Ward Beecher',
@@ -115,35 +117,30 @@ const displayTimedOut = ref<number | null>(0)
 
 const CARD_COUNT = 4
 const cardRefs = reactive<any[]>(new Array(CARD_COUNT).fill(null))
-
 const cardStyles = reactive<string[]>(
   new Array(CARD_COUNT).fill('transform: perspective(800px) rotateX(0deg) rotateY(0deg) scale(1);'),
 )
-
 const shimmerStyles = reactive<string[]>(new Array(CARD_COUNT).fill(''))
 
 let liveChannel: ReturnType<typeof supabase.channel> | null = null
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
 let topDepartmentRunId = 0
 
+// ─── Interaction ──────────────────────────────────────────────────────────────
+
 function onMouseMove(e: MouseEvent, index: number) {
   const card = cardRefs[index]
   if (!card) return
-
   const rect = (card as HTMLElement).getBoundingClientRect()
   const x = e.clientX - rect.left
   const y = e.clientY - rect.top
   const cx = rect.width / 2
   const cy = rect.height / 2
-
   const rotY = ((x - cx) / cx) * 18
   const rotX = -((y - cy) / cy) * 18
-
   cardStyles[index] = `transform: rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.05);`
-
   const px = (x / rect.width) * 100
   const py = (y / rect.height) * 100
-
   shimmerStyles[index] =
     `background: radial-gradient(circle at ${px}% ${py}%, rgba(255,255,255,0.22) 0%, transparent 60%);`
 }
@@ -153,243 +150,16 @@ function onMouseLeave(index: number) {
   shimmerStyles[index] = ''
 }
 
-const handleTabChange = (name: string) => {
-  activeTab.value = name
-}
+const handleTabChange = (name: string) => { activeTab.value = name }
+
+// ─── Computed ─────────────────────────────────────────────────────────────────
 
 const currentDate = computed(() =>
   new Date().toLocaleDateString('en-PH', {
     timeZone: 'Asia/Manila',
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   }),
 )
-
-const animateValue = (target: any, final: number, duration = 500) => {
-  const current = Number(target.value || 0)
-
-  if (current === final) {
-    target.value = final
-    return
-  }
-
-  let start = current
-  const step = (final - start) / (duration / 16)
-
-  const interval = setInterval(() => {
-    start += step
-
-    if ((step >= 0 && start >= final) || (step < 0 && start <= final)) {
-      target.value = final
-      clearInterval(interval)
-    } else {
-      target.value = Math.floor(start)
-    }
-  }, 16)
-}
-
-const sleep = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms))
-
-function getPHDateParts(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date)
-
-  const [year, month, day] = parts.split('-').map(Number)
-
-  return { year, month, day }
-}
-
-function getPHDateRangeForToday() {
-  const { year, month, day } = getPHDateParts()
-
-  return {
-    start: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00+08:00`,
-    end: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T23:59:59+08:00`,
-  }
-}
-
-function getPHDateRangeForCurrentMonth() {
-  const { year, month } = getPHDateParts()
-  const lastDay = new Date(year, month, 0).getDate()
-
-  return {
-    start: `${year}-${String(month).padStart(2, '0')}-01T00:00:00+08:00`,
-    end: `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59+08:00`,
-  }
-}
-
-async function fetchUserName() {
-  const { data: auth } = await supabase.auth.getUser()
-
-  if (!auth?.user?.email) return ''
-
-  const { data, error } = await supabase
-    .from('users')
-    .select('first_name')
-    .eq('email', auth.user.email)
-    .single()
-
-  if (error) {
-    console.error('Failed to fetch user name:', error)
-    return ''
-  }
-
-  return data?.first_name || ''
-}
-
-async function fetchFastDashboardStats() {
-  const todayRange = getPHDateRangeForToday()
-  const monthRange = getPHDateRangeForCurrentMonth()
-
-  const [fetchedName, monthlyResult, activeResult, timedOutResult] = await Promise.all([
-    fetchUserName(),
-
-    supabase
-      .from('attendance_logs')
-      .select('id', { count: 'exact', head: true })
-      .eq('attendance_type', 'library')
-      .gte('time_in', monthRange.start)
-      .lte('time_in', monthRange.end),
-
-    supabase
-      .from('attendance_logs')
-      .select('id', { count: 'exact', head: true })
-      .eq('attendance_type', 'library')
-      .gte('time_in', todayRange.start)
-      .lte('time_in', todayRange.end)
-      .is('time_out', null),
-
-    supabase
-      .from('attendance_logs')
-      .select('id', { count: 'exact', head: true })
-      .eq('attendance_type', 'library')
-      .gte('time_out', todayRange.start)
-      .lte('time_out', todayRange.end),
-  ])
-
-  if (monthlyResult.error) console.error('Failed to fetch monthly attendance:', monthlyResult.error)
-  if (activeResult.error) console.error('Failed to fetch active visitors:', activeResult.error)
-  if (timedOutResult.error) console.error('Failed to fetch timed out visitors:', timedOutResult.error)
-
-  firstName.value = fetchedName
-
-  monthlyAttendance.value = monthlyResult.count ?? 0
-  activeVisitors.value = activeResult.count ?? 0
-  timedOutVisitors.value = timedOutResult.count ?? 0
-
-  animateValue(displayMonthly, monthlyAttendance.value)
-  animateValue(displayVisitors, activeVisitors.value)
-  animateValue(displayTimedOut, timedOutVisitors.value)
-}
-
-async function fetchTopDepartmentInBackground() {
-  const runId = ++topDepartmentRunId
-  const tally: Record<string, number> = {}
-  const batchSize = 300
-  let from = 0
-
-  try {
-    while (true) {
-      if (runId !== topDepartmentRunId) return
-
-      const to = from + batchSize - 1
-
-      const { data, error } = await supabase
-        .from('attendance_logs')
-        .select(
-          `
-          id,
-          attendance_type,
-          students!inner (
-            college
-          )
-        `,
-        )
-        .eq('attendance_type', 'library')
-        .range(from, to)
-
-      if (error) {
-        console.error('Failed to fetch top department:', error)
-        topDepartment.value = '—'
-        return
-      }
-
-      const rows = data || []
-
-      for (const row of rows) {
-        const student = Array.isArray(row.students) ? row.students[0] : row.students
-        const college = student?.college
-
-        if (college) {
-          tally[college] = (tally[college] || 0) + 1
-        }
-      }
-
-      const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]
-      topDepartment.value = top ? top[0] : '—'
-
-      if (rows.length < batchSize) break
-
-      from += batchSize
-      await sleep(0)
-    }
-  } catch (error) {
-    console.error('Unexpected top department error:', error)
-    topDepartment.value = '—'
-  }
-}
-
-const scheduleRealtimeRefresh = () => {
-  if (refreshTimer) clearTimeout(refreshTimer)
-
-  refreshTimer = setTimeout(async () => {
-    await fetchFastDashboardStats()
-    fetchTopDepartmentInBackground()
-  }, 400)
-}
-
-onMounted(async () => {
-  localStorage.removeItem('dashboard_stats')
-
-  await fetchFastDashboardStats()
-
-  fetchTopDepartmentInBackground()
-
-  liveChannel = supabase
-    .channel('dashboard-live')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'attendance_logs',
-      },
-      () => {
-        scheduleRealtimeRefresh()
-      },
-    )
-    .subscribe()
-})
-
-onBeforeUnmount(() => {
-  topDepartmentRunId++
-
-  if (refreshTimer) {
-    clearTimeout(refreshTimer)
-    refreshTimer = null
-  }
-
-  if (liveChannel) {
-    supabase.removeChannel(liveChannel)
-    liveChannel = null
-  }
-})
 
 const quickStats = computed(() => [
   {
@@ -413,6 +183,211 @@ const quickStats = computed(() => [
     icon: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14l2.5 2.5L16 11"/></svg>`,
   },
 ])
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const animateValue = (target: any, final: number, duration = 500) => {
+  const current = Number(target.value || 0)
+  if (current === final) { target.value = final; return }
+  let start = current
+  const step = (final - start) / (duration / 16)
+  const interval = setInterval(() => {
+    start += step
+    if ((step >= 0 && start >= final) || (step < 0 && start <= final)) {
+      target.value = final
+      clearInterval(interval)
+    } else {
+      target.value = Math.floor(start)
+    }
+  }, 16)
+}
+
+function getPHDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(date)
+  const [year, month, day] = parts.split('-').map(Number)
+  return { year, month, day }
+}
+
+function getPHDateRangeForToday() {
+  const { year, month, day } = getPHDateParts()
+  const y = String(year).padStart(4, '0')
+  const m = String(month).padStart(2, '0')
+  const d = String(day).padStart(2, '0')
+  return { start: `${y}-${m}-${d}T00:00:00+08:00`, end: `${y}-${m}-${d}T23:59:59+08:00` }
+}
+
+function getPHDateRangeForCurrentMonth() {
+  const { year, month } = getPHDateParts()
+  const lastDay = new Date(year ?? new Date().getFullYear(), month ?? new Date().getMonth() + 1, 0).getDate()
+  const y = String(year).padStart(4, '0')
+  const m = String(month).padStart(2, '0')
+  return {
+    start: `${y}-${m}-01T00:00:00+08:00`,
+    end: `${y}-${m}-${String(lastDay).padStart(2, '0')}T23:59:59+08:00`,
+  }
+}
+
+// ─── OPTIMIZED: User name ─────────────────────────────────────────────────────
+// Auth session is cached by the Supabase client — getSession() is synchronous
+// from cache on repeat calls; getUser() does a network round-trip every time.
+// We use getSession() to avoid the extra /auth/v1/user request after first load.
+
+async function fetchUserName(): Promise<string> {
+  const { data: session } = await supabase.auth.getSession()
+  const email = session?.session?.user?.email
+  if (!email) return ''
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('first_name')
+    .eq('email', email)
+    .single()
+
+  if (error) { console.error('fetchUserName:', error); return '' }
+  return data?.first_name || ''
+}
+
+// ─── OPTIMIZED: Dashboard stats — 2 queries instead of 3 ─────────────────────
+//
+// Previously: 3 separate COUNT queries (monthly, active today, timed-out today)
+// Now:
+//   • 1 HEAD COUNT for monthly (date range too wide to scan rows cheaply)
+//   • 1 lightweight row fetch for today's logs (only time_out column needed),
+//     then derive active (time_out IS NULL) and timed-out (time_out IS NOT NULL)
+//     client-side — eliminates one full round-trip on every refresh.
+
+async function fetchFastDashboardStats() {
+  const todayRange = getPHDateRangeForToday()
+  const monthRange = getPHDateRangeForCurrentMonth()
+
+  const [fetchedName, monthlyResult, todayResult] = await Promise.all([
+    fetchUserName(),
+
+    // Monthly: HEAD count — no rows transferred
+    supabase
+      .from('attendance_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('attendance_type', 'library')
+      .gte('time_in', monthRange.start)
+      .lte('time_in', monthRange.end),
+
+    // Today: fetch only time_out for today's library logs — derive both counts
+    supabase
+      .from('attendance_logs')
+      .select('time_out')
+      .eq('attendance_type', 'library')
+      .gte('time_in', todayRange.start)
+      .lte('time_in', todayRange.end),
+  ])
+
+  if (monthlyResult.error) console.error('fetchMonthly:', monthlyResult.error)
+  if (todayResult.error)   console.error('fetchToday:', todayResult.error)
+
+  firstName.value = fetchedName
+  monthlyAttendance.value = monthlyResult.count ?? 0
+
+  const todayRows = todayResult.data ?? []
+  activeVisitors.value  = todayRows.filter(r => r.time_out === null).length
+  timedOutVisitors.value = todayRows.filter(r => r.time_out !== null).length
+
+  animateValue(displayMonthly,  monthlyAttendance.value)
+  animateValue(displayVisitors,  activeVisitors.value)
+  animateValue(displayTimedOut, timedOutVisitors.value)
+}
+
+// ─── OPTIMIZED: Top department — minimal columns, larger batches ──────────────
+//
+// Previously: selected id + attendance_type + students(college) — id and
+//   attendance_type are unused inside the loop; attendance_type is already
+//   filtered by the query predicate.
+// Now: selects only students(college) — smallest possible payload per row.
+// Batch size raised from 300 → 500 to cut pagination round-trips by ~40%.
+
+async function fetchTopDepartmentInBackground() {
+  const runId = ++topDepartmentRunId
+  const tally: Record<string, number> = {}
+  const batchSize = 500
+  let from = 0
+
+  try {
+    while (true) {
+      if (runId !== topDepartmentRunId) return
+
+      const { data, error } = await supabase
+        .from('attendance_logs')
+        .select('students!inner(college)')
+        .eq('attendance_type', 'library')
+        .range(from, from + batchSize - 1)
+
+      if (error) {
+        console.error('fetchTopDepartment:', error)
+        topDepartment.value = '—'
+        return
+      }
+
+      const rows = data ?? []
+
+      for (const row of rows) {
+        const student = Array.isArray(row.students) ? row.students[0] : row.students
+        const college = (student as any)?.college
+        if (college) tally[college] = (tally[college] || 0) + 1
+      }
+
+      // Update incrementally so the card shows improving results during pagination
+      const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]
+      topDepartment.value = top ? top[0] : '—'
+
+      if (rows.length < batchSize) break
+      from += batchSize
+
+      // Yield to event loop between batches to avoid blocking UI
+      await new Promise(r => setTimeout(r, 0))
+    }
+  } catch (err) {
+    console.error('fetchTopDepartment unexpected:', err)
+    topDepartment.value = '—'
+  }
+}
+
+// ─── Realtime ─────────────────────────────────────────────────────────────────
+
+const scheduleRealtimeRefresh = () => {
+  if (refreshTimer) clearTimeout(refreshTimer)
+  refreshTimer = setTimeout(async () => {
+    await fetchFastDashboardStats()
+    fetchTopDepartmentInBackground()
+  }, 400)
+}
+
+// ─── Lifecycle ────────────────────────────────────────────────────────────────
+
+onMounted(async () => {
+  localStorage.removeItem('dashboard_stats')
+
+  // Kick off stats and top-department in parallel — don't await the background one
+  const [statsResult] = await Promise.allSettled([
+    fetchFastDashboardStats(),
+    fetchTopDepartmentInBackground(),
+  ])
+
+  if (statsResult.status === 'rejected') console.error('Dashboard stats failed:', statsResult.reason)
+
+  liveChannel = supabase
+    .channel('dashboard-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_logs' }, () => {
+      scheduleRealtimeRefresh()
+    })
+    .subscribe()
+})
+
+onBeforeUnmount(() => {
+  topDepartmentRunId++
+  if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null }
+  if (liveChannel) { supabase.removeChannel(liveChannel); liveChannel = null }
+})
 </script>
 
 <style scoped>

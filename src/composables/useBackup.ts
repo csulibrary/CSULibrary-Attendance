@@ -155,7 +155,7 @@ export function useBackup() {
       while (nextIndex < tasks.length) {
         const index = nextIndex
         nextIndex += 1
-        await tasks[index]()
+        await tasks[index]?.()
       }
     })
 

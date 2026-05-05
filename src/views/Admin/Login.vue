@@ -125,7 +125,7 @@
           <p class="text-white/60 text-sm">
             No Account?
             <RouterLink
-              to="/admin/signin"
+              to="/signin"
               class="text-[#00bf63] font-black hover:underline transition-colors duration-200"
             >
               Register Here

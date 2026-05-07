@@ -6,7 +6,7 @@
       <header class="attn-header">
         <div class="space-y-4">
           <div class="relative group">
-            <div class="header-breadcrumb !mb-2">
+            <div class="header-breadcrumb mb-2!">
               <span>Admin</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <path d="M9 5l7 7-7 7" />
@@ -24,23 +24,33 @@
         </div>
       </header>
 
-      <div class="stat-strip">
-        <div
-          v-for="(s, i) in quickStats"
-          :key="s.label"
-          class="qstat"
-          :style="{ animationDelay: 0.25 + i * 0.08 + 's' }"
-        >
-          <div class="qstat-icon" v-html="s.icon"></div>
-          <div>
-            <p class="qstat-val">{{ s.val }}</p>
-            <p class="qstat-label">{{ s.label }}</p>
-          </div>
-          <span class="qstat-badge" :class="s.up ? 'qstat-badge--up' : 'qstat-badge--dn'">
-            {{ s.delta }}
-          </span>
-        </div>
+     <div class="stat-strip">
+  <div
+    v-for="(s, i) in quickStats"
+    :key="s.label"
+    class="qstat"
+    :style="{ animationDelay: 0.25 + i * 0.08 + 's' }"
+  >
+    <div class="qstat-icon" v-html="s.icon"></div>
+    <div>
+      <p class="qstat-val">{{ s.val }}</p>
+      <p class="qstat-label">{{ s.label }}</p>
+      
+      <!-- Gender Breakdown  -->
+      <div v-if="s.gender" class="qstat-gender-mini">
+        <span class="m-text">♂ {{ s.gender.male }}</span>
+        <!-- <span class="divider">|</span> -->
+        <span class="f-text">♀ {{ s.gender.female }}</span>
       </div>
+    </div>
+
+    <span class="qstat-badge" :class="s.up ? 'qstat-badge--up' : 'qstat-badge--dn'">
+      {{ s.delta }}
+    </span>
+  </div>
+</div>
+
+      
 
       <div class="main-grid">
         <div class="dial-card enhanced">
@@ -231,17 +241,6 @@ type StudentInfo = {
   year_level: number | string | null
 }
 
-type AttendanceLog = {
-  id: string
-  student_id: string
-  time_in: string | null
-  time_out: string | null
-  attendance_type: string | null
-  event_id?: string | null
-  duration_minutes?: number | null
-  students?: StudentInfo | StudentInfo[] | null
-}
-
 type ExportBatchRow = {
   id: string
   file_name: string | null
@@ -268,60 +267,40 @@ type ExportLogView = {
 // ─── State ────────────────────────────────────────────────────────────────────
 
 const loading = ref(false)
-const barsVisible = ref(false)
 const exportLogs = ref<ExportLogView[]>([])
 
-const totalLibraryVisits = ref(0)
+// Real-time Counters (Today)
+const totalLibraryVisits = ref(0) // Monthly Total
+const totalOverallVisits = ref(0) // Monthly total (Library + Event + visitor)
 const visitorsTodayCount = ref(0)
 const outgoingCount = ref(0)
 const currentlyInsideCount = ref(0)
 const averageStayDurationText = ref('—')
 
+
+const totalEventVisits = ref(0)
+const totalVisitorVisits = ref(0)
+
+
+// Analytics (Monthly)
 const topPeakHour = ref<{ label: string; visits: number } | null>(null)
 const topPeakDay = ref<{ day: string; visits: number } | null>(null)
 const topCollege = ref<{ name: string; visits: number } | null>(null)
 const topProgram = ref<{ name: string; visits: number } | null>(null)
 const topYearLevel = ref<{ name: string; visits: number } | null>(null)
 
+
+const genderBreakdown = ref({
+  library: { male: 0, female: 0 },
+  event: { male: 0, female: 0 },
+  overall: { male: 0, female: 0 }
+})
+
 let analyticsRunId = 0
 let liveChannel: ReturnType<typeof supabase.channel> | null = null
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
-
-// ─── Lifecycle ────────────────────────────────────────────────────────────────
-
-onMounted(async () => {
-  setTimeout(() => { barsVisible.value = true }, 300)
-
-  // Fire all three independent fetches in parallel — single round-trip group
-  await Promise.all([
-    fetchLiveCountsOptimized(),
-    fetchAnalyticsOptimized(),
-    fetchExportLogs(),
-  ])
-
-  liveChannel = supabase
-    .channel('attendance-overview-live')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_logs' }, () => {
-      scheduleRealtimeRefresh()
-    })
-    .subscribe()
-})
-
-onBeforeUnmount(() => {
-  analyticsRunId++
-  if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null }
-  if (liveChannel) { supabase.removeChannel(liveChannel); liveChannel = null }
-})
-
-const scheduleRealtimeRefresh = () => {
-  if (refreshTimer) clearTimeout(refreshTimer)
-  refreshTimer = setTimeout(async () => {
-    await Promise.all([fetchLiveCountsOptimized(), fetchAnalyticsOptimized()])
-  }, 400)
-}
-
-// ─── Date helpers ─────────────────────────────────────────────────────────────
+// ─── Date Helpers ─────────────────────────────────────────────────────────────
 
 const getTodayPH = () =>
   new Intl.DateTimeFormat('en-CA', {
@@ -334,6 +313,13 @@ const getPHDateRangeForToday = () => {
   return { start: `${today}T00:00:00+08:00`, end: `${today}T23:59:59+08:00` }
 }
 
+const getThisMonthRange = () => {
+  const now = new Date()
+  // First day of current month 
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  return { firstDay }
+}
+
 const getDateObject = (value: string | null) => {
   if (!value) return null
   const dt = new Date(value)
@@ -343,11 +329,9 @@ const getDateObject = (value: string | null) => {
 const getHour = (value: string | null) => {
   const dt = getDateObject(value)
   if (!dt) return null
-  return Number(
-    new Intl.DateTimeFormat('en-PH', {
-      timeZone: 'Asia/Manila', hour: '2-digit', hour12: false,
-    }).format(dt),
-  )
+  return Number(new Intl.DateTimeFormat('en-PH', {
+    timeZone: 'Asia/Manila', hour: '2-digit', hour12: false,
+  }).format(dt))
 }
 
 const getDayName = (value: string | null) => {
@@ -361,7 +345,7 @@ const formatHourLabel = (hour: number) => {
   return `${hour % 12 || 12}:00 ${suffix}`
 }
 
-const getDurationMinutes = (log: { duration_minutes?: number | null; time_in: string | null; time_out: string | null }) => {
+const getDurationMinutes = (log: any) => {
   if (typeof log.duration_minutes === 'number' && log.duration_minutes > 0) return log.duration_minutes
   const timeIn = getDateObject(log.time_in)
   const timeOut = getDateObject(log.time_out)
@@ -370,58 +354,71 @@ const getDurationMinutes = (log: { duration_minutes?: number | null; time_in: st
   return diff < 0 ? 0 : Math.round(diff / 60000)
 }
 
-const normalizeStudent = (s: StudentInfo | StudentInfo[] | null | undefined): StudentInfo | null =>
+const normalizeStudent = (s: any): StudentInfo | null =>
   Array.isArray(s) ? s[0] || null : s || null
 
-// ─── OPTIMIZED: Live counts — 1 query instead of 4 ───────────────────────────
-//
-// Previously: 4 separate COUNT queries (total, incoming, active, outgoing)
-// Now: 1 COUNT query for total + 1 lightweight query for today's rows,
-//      then derive incoming / active / outgoing client-side.
-// Saves ~3 round-trips on every live refresh.
+// ─── Data Fetching ───────────────────────────────────────────────────────────
 
 const fetchLiveCountsOptimized = async () => {
   const { start, end } = getPHDateRangeForToday()
+  const { firstDay } = getThisMonthRange()
 
-  const [totalResult, todayResult] = await Promise.all([
-    // Total all-time count — HEAD only, no data transferred
-    supabase
-      .from('attendance_logs')
-      .select('id', { count: 'exact', head: true })
-      .eq('attendance_type', 'library'),
-
-    // Today's rows — only the two timestamp columns needed for derivation
-    supabase
-      .from('attendance_logs')
-      .select('time_in, time_out')
+  const [libData, evtData, visRes, todayRes] = await Promise.all([
+    // Fetch Library with Student Gender
+    supabase.from('attendance_logs')
+      .select('students(gender)')
       .eq('attendance_type', 'library')
-      .gte('time_in', start)
-      .lte('time_in', end),
+      .gte('time_in', firstDay),
+    
+    // Fetch Event with Student Gender
+    supabase.from('attendance_logs')
+      .select('students(gender)')
+      .eq('attendance_type', 'event')
+      .gte('time_in', firstDay),
+
+    // Visitors (Monthly)
+    supabase.from('attendance_logs_visitors').select('id', { count: 'exact', head: true }).gte('time_in', firstDay),
+
+    // Today's Library Activity
+    supabase.from('attendance_logs').select('time_in, time_out').eq('attendance_type', 'library').gte('time_in', start)
   ])
 
-  if (totalResult.error) console.error('fetchLiveCounts total:', totalResult.error)
-  if (todayResult.error) console.error('fetchLiveCounts today:', todayResult.error)
+  // Helper function 
+  const countGender = (data: any[]) => {
+    return data.reduce((acc, curr) => {
+      const g = curr.students?.gender?.toLowerCase()
+      if (g === 'male') acc.male++
+      else if (g === 'female') acc.female++
+      return acc
+    }, { male: 0, female: 0 })
+  }
 
-  totalLibraryVisits.value = totalResult.count ?? 0
+  // Assign Counts
+  const libGenders = countGender(libData.data || [])
+  const evtGenders = countGender(evtData.data || [])
+  
+  genderBreakdown.value.library = libGenders
+  genderBreakdown.value.event = evtGenders
+  genderBreakdown.value.overall = {
+    male: libGenders.male + evtGenders.male,
+    female: libGenders.female + evtGenders.female
+  }
 
-  const rows = todayResult.data ?? []
-  // incoming  = all rows scanned (time_in falls in today's window — already filtered)
-  // active    = rows where time_out is still null
-  // outgoing  = rows where time_out is set (checked-out today)
+  totalLibraryVisits.value = libData.data?.length || 0
+  totalEventVisits.value = evtData.data?.length || 0
+  totalVisitorVisits.value = visRes.count || 0
+  totalOverallVisits.value = totalLibraryVisits.value + totalEventVisits.value + totalVisitorVisits.value
+
+  // Today's Gauge logic...
+  const rows = todayRes.data ?? []
   visitorsTodayCount.value = rows.length
   currentlyInsideCount.value = rows.filter(r => r.time_out === null).length
   outgoingCount.value = rows.filter(r => r.time_out !== null).length
 }
 
-// ─── OPTIMIZED: Analytics — minimal columns, single paginated pass ────────────
-//
-// Previously: fetched full rows including a heavy students JOIN on every batch.
-// Now: selects only the 5 columns actually needed for aggregation.
-// The students join is kept but scoped to only college/program/year_level,
-// eliminating name, id_number, and other unused fields from the payload.
-
 const fetchAnalyticsOptimized = async () => {
   const runId = ++analyticsRunId
+  const { firstDay } = getThisMonthRange()
   loading.value = true
 
   try {
@@ -434,7 +431,7 @@ const fetchAnalyticsOptimized = async () => {
     const programMap: Record<string, number> = {}
     const yearLevelMap: Record<string, number> = {}
 
-    const batchSize = 500 // larger batch = fewer round-trips
+    const batchSize = 1000
     let from = 0
 
     while (true) {
@@ -443,21 +440,15 @@ const fetchAnalyticsOptimized = async () => {
       const { data, error } = await supabase
         .from('attendance_logs')
         .select(`
-          time_in,
-          time_out,
-          duration_minutes,
-          students!attendance_logs_student_id_fkey (
-            college,
-            program,
-            year_level
-          )
+          time_in, time_out, duration_minutes,
+          students!attendance_logs_student_id_fkey (college, program, year_level)
         `)
         .eq('attendance_type', 'library')
+        .gte('time_in', firstDay) // FILTER: This Month Only
         .order('time_in', { ascending: false })
         .range(from, from + batchSize - 1)
 
-      if (error) { console.error('fetchAnalytics:', error); break }
-
+      if (error) break
       const rows = data ?? []
 
       for (const item of rows as any[]) {
@@ -467,7 +458,7 @@ const fetchAnalyticsOptimized = async () => {
         if (duration > 0) { totalDuration += duration; durationCount++ }
 
         const hour = getHour(item.time_in)
-        if (hour !== null && !Number.isNaN(hour)) hourMap[hour] = (hourMap[hour] || 0) + 1
+        if (hour !== null) hourMap[hour] = (hourMap[hour] || 0) + 1
 
         const day = getDayName(item.time_in)
         dayMap[day] = (dayMap[day] || 0) + 1
@@ -481,7 +472,7 @@ const fetchAnalyticsOptimized = async () => {
         yearLevelMap[yearLevel] = (yearLevelMap[yearLevel] || 0) + 1
       }
 
-      // Update reactive state incrementally so UI reflects progress
+      // Update Averages
       if (durationCount > 0) {
         const avg = Math.round(totalDuration / durationCount)
         const hrs = Math.floor(avg / 60)
@@ -489,7 +480,8 @@ const fetchAnalyticsOptimized = async () => {
         averageStayDurationText.value = hrs > 0 ? `${hrs}h ${mins}m` : `${mins} mins`
       }
 
-      const topOf = <T extends Record<string, number>>(map: T, keyAs: string) =>
+      // Helper to find Top Key
+      const topOf = (map: Record<string, number>, keyAs: string) =>
         Object.entries(map)
           .map(([k, v]) => ({ [keyAs]: k, visits: v } as any))
           .sort((a, b) => b.visits - a.visits)[0] ?? null
@@ -498,183 +490,110 @@ const fetchAnalyticsOptimized = async () => {
         .map(([h, v]) => ({ label: formatHourLabel(Number(h)), visits: v }))
         .sort((a, b) => b.visits - a.visits)[0] ?? null
 
-      topPeakDay.value   = topOf(dayMap,      'day')
-      topCollege.value   = topOf(collegeMap,  'name')
-      topProgram.value   = topOf(programMap,  'name')
-      topYearLevel.value = topOf(yearLevelMap,'name')
+      topPeakDay.value = topOf(dayMap, 'day')
+      topCollege.value = topOf(collegeMap, 'name')
+      topProgram.value = topOf(programMap, 'name')
+      topYearLevel.value = topOf(yearLevelMap, 'name')
 
       if (rows.length < batchSize) break
       from += batchSize
-
-      // Yield to event loop between batches to keep UI responsive
       await new Promise(r => setTimeout(r, 0))
     }
-  } catch (err) {
-    console.error('Analytics error:', err)
   } finally {
     if (runId === analyticsRunId) loading.value = false
   }
 }
 
-// ─── Export logs ─────────────────────────────────────────────────────────────
-
-const formatExportDate = (value: string | null) => {
-  if (!value) return { date: '--', time: '--' }
-  const normalizedValue = /Z$|[+-]\d{2}:\d{2}$/.test(value) ? value : `${value}Z`
-  const d = new Date(normalizedValue)
-  if (Number.isNaN(d.getTime())) return { date: '--', time: '--' }
-  return {
-    date: d.toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', year: 'numeric', month: 'short', day: '2-digit' }),
-    time: d.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: true }),
-  }
-}
-
-const normalizeFileType = (value: string | null) => {
-  const type = String(value || '').trim().toUpperCase()
-  if (type === 'XLS' || type === 'XLSX' || type === 'EXCEL') return 'XLSX'
-  if (type === 'CSV') return 'CSV'
-  if (type === 'PDF') return 'PDF'
-  return type || 'FILE'
-}
-
-const getFileTypeClass = (type: string) => {
-  const n = normalizeFileType(type).toLowerCase()
-  if (n === 'xlsx') return 'xlsx'
-  if (n === 'csv')  return 'csv'
-  if (n === 'pdf')  return 'pdf'
-  return 'file'
-}
-
-const getStatusClass = (value: string | null) => {
-  const n = String(value || 'success').trim().toLowerCase()
-  if (n === 'failed')  return 'failed'
-  if (n === 'pending') return 'pending'
-  return 'success'
-}
-
-const formatStatusLabel = (value: string | null) => {
-  const n = getStatusClass(value)
-  if (n === 'failed')  return 'Failed'
-  if (n === 'pending') return 'Pending'
-  return 'Success'
-}
-
 const fetchExportLogs = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('export_batches')
-      .select('id, file_name, file_type, uploaded_at, row_count, status, exported_by_name')
-      .order('uploaded_at', { ascending: false })
-      .limit(5)
+  const { data } = await supabase
+    .from('export_batches')
+    .select('*')
+    .order('uploaded_at', { ascending: false })
+    .limit(5)
 
-    if (error) { console.error('fetchExportLogs:', error); exportLogs.value = []; return }
-
-    exportLogs.value = (data || []).map((row: ExportBatchRow) => {
-      const formatted = formatExportDate(row.uploaded_at)
-      const type = normalizeFileType(row.file_type)
-      const statusClass = getStatusClass(row.status)
-      return {
-        id: row.id,
-        date: formatted.date,
-        time: formatted.time,
-        type,
-        typeClass: getFileTypeClass(type),
-        user: row.exported_by_name || 'Unknown User',
-        status: formatStatusLabel(row.status),
-        statusClass,
-        rowCount: row.row_count || 0,
-        fileName: row.file_name || '--',
-      }
-    })
-  } catch (err) {
-    console.error('fetchExportLogs unexpected:', err)
-    exportLogs.value = []
+  if (data) {
+    exportLogs.value = data.map((row: any) => ({
+      id: row.id,
+      date: new Date(row.uploaded_at).toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' }),
+      time: new Date(row.uploaded_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }),
+      type: (row.file_type || 'XLSX').toUpperCase(),
+      typeClass: (row.file_type || 'xlsx').toLowerCase(),
+      user: row.exported_by_name || 'System',
+      status: row.status === 'failed' ? 'Failed' : 'Success',
+      statusClass: row.status || 'success',
+      rowCount: row.row_count || 0,
+      fileName: row.file_name || '--',
+    }))
   }
 }
+
+// ─── Lifecycle ────────────────────────────────────────────────────────────────
+
+onMounted(async () => {
+  await Promise.all([fetchLiveCountsOptimized(), fetchAnalyticsOptimized(), fetchExportLogs()])
+  
+  liveChannel = supabase.channel('attendance-db-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_logs' }, () => {
+      if (refreshTimer) clearTimeout(refreshTimer)
+      refreshTimer = setTimeout(() => {
+        fetchLiveCountsOptimized()
+        fetchAnalyticsOptimized()
+      }, 500)
+    })
+    .subscribe()
+})
+
+onBeforeUnmount(() => {
+  if (refreshTimer) clearTimeout(refreshTimer)
+  if (liveChannel) supabase.removeChannel(liveChannel)
+})
 
 // ─── Computed ─────────────────────────────────────────────────────────────────
 
-const visitorsToday  = computed(() => visitorsTodayCount.value)
-const outgoing       = computed(() => outgoingCount.value)
+const visitorsToday = computed(() => visitorsTodayCount.value)
+const outgoing = computed(() => outgoingCount.value)
 const currentlyInside = computed(() => currentlyInsideCount.value)
-const gaugeCount     = computed(() => currentlyInside.value)
+const gaugeCount = computed(() => currentlyInside.value)
 
+const gaugeFillPercent = computed(() => Math.min((gaugeCount.value / 50) * 100, 100)) 
 const gaugeStatus = computed(() => {
-  if (gaugeCount.value === 0)   return 'No Active Visitors'
-  if (gaugeCount.value <= 10)   return 'Low Active Visitors'
-  if (gaugeCount.value <= 30)   return 'Moderate'
-  return 'High Active Visitors'
-})
-
-const gaugeFillPercent = computed(() => {
-  if (gaugeCount.value === 0)  return 0
-  if (gaugeCount.value <= 10)  return 35
-  if (gaugeCount.value <= 30)  return 65
-  return 100
+  if (gaugeCount.value === 0) return 'No Active Visitors'
+  if (gaugeCount.value <= 10) return 'Low Traffic'
+  if (gaugeCount.value <= 30) return 'Moderate Traffic'
+  return 'High Traffic'
 })
 
 const flowMax = computed(() => Math.max(visitorsToday.value, outgoing.value, 1))
-
-const incomingBarWidth = computed(() =>
-  `${Math.max((visitorsToday.value / flowMax.value) * 100, visitorsToday.value ? 12 : 0)}%`
-)
-const outgoingBarWidth = computed(() =>
-  `${Math.max((outgoing.value / flowMax.value) * 100, outgoing.value ? 12 : 0)}%`
-)
+const incomingBarWidth = computed(() => `${(visitorsToday.value / flowMax.value) * 100}%`)
+const outgoingBarWidth = computed(() => `${(outgoing.value / flowMax.value) * 100}%`)
 
 const quickStats = computed(() => [
-  {
-    val: totalLibraryVisits.value,
-    label: 'Total Library Visits',
-    delta: 'All',
+  { val: totalLibraryVisits.value, label: 'Monthly Visits (Library)', delta: 'This Month', up: true, gender: genderBreakdown.value.library, icon: '👤' },
+  { 
+    val: totalEventVisits.value, 
+    label: 'Event Attendance', 
+    delta: 'Students', 
     up: true,
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    gender: genderBreakdown.value.event,
+    icon: '🎟️' 
   },
-  {
-    val: topPeakHour.value ? topPeakHour.value.label : 'N/A',
-    label: 'Peak Hours',
-    delta: topPeakHour.value ? `${topPeakHour.value.visits} visits` : '—',
-    up: true,
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-  },
-  {
-    val: topPeakDay.value ? topPeakDay.value.day : 'N/A',
-    label: 'Peak Days',
-    delta: topPeakDay.value ? `${topPeakDay.value.visits} visits` : '—',
-    up: true,
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
-  },
-  {
-    val: averageStayDurationText.value,
-    label: 'Average Stay',
-    delta: 'Session',
-    up: true,
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-  },
-  {
-    val: topCollege.value ? topCollege.value.name : 'N/A',
-    label: 'Visits by College',
-    delta: topCollege.value ? `${topCollege.value.visits} visits` : '—',
-    up: true,
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`,
-  },
-  {
-    val: topProgram.value ? topProgram.value.name : 'N/A',
-    label: 'Visits by Program',
-    delta: topProgram.value ? `${topProgram.value.visits} visits` : '—',
-    up: true,
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
-  },
-  {
-    val: topYearLevel.value ? `Year ${topYearLevel.value.name}` : 'N/A',
-    label: 'Visits by Year Level',
-    delta: topYearLevel.value ? `${topYearLevel.value.visits} visits` : '—',
-    up: true,
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`,
-  },
+    { 
+      val: totalVisitorVisits.value, 
+      label: 'Visitor Attendance', 
+      delta: 'Visitors', 
+      up: true, 
+      icon: '🧑‍🤝‍🧑' 
+    },
+  { val: totalOverallVisits.value, label: 'Attendance (all types)', delta: 'This Month', up: true, gender: genderBreakdown.value.overall, icon: '📊' },
+  { val: topPeakHour.value?.label || 'N/A', label: 'Peak Hour', delta: topPeakHour.value ? `${topPeakHour.value.visits} vists` : '—', up: true, icon: '⏰' },
+  { val: topPeakDay.value?.day || 'N/A', label: 'Peak Day', delta: topPeakDay.value ? `${topPeakDay.value.visits} visits` : '—', up: true, icon: '📅' },
+  { val: averageStayDurationText.value, label: 'Avg. Stay', delta: 'Per Session', up: true, icon: '⏳' },
+  { val: topCollege.value?.name || 'N/A', label: 'Top College', delta: 'Monthly', up: true, icon: '🎓' },
+  { val: topProgram.value?.name || 'N/A', label: 'Top Program', delta: 'Monthly', up: true, icon: '📚' },
+  { val: topYearLevel.value ? `Year ${topYearLevel.value.name}` : 'N/A', label: 'Top Year', delta: 'Monthly', up: true, icon: '⭐' },
 ])
 
-const handleTabChange = (name: string) => console.log('tab:', name)
+const handleTabChange = (n: string) => console.log(n)
 </script>
 
 <style scoped>
@@ -764,6 +683,41 @@ const handleTabChange = (name: string) => console.log('tab:', name)
   to {
     transform: scaleX(1);
   }
+}
+
+
+.qstat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px; 
+}
+
+.qstat-gender-mini {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .85rem; 
+  margin-top: 4px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.m-text {
+  color: #60a5fa; 
+}
+
+.f-text {
+  color: #f472b6; 
+}
+
+.qstat-gender-mini {
+  transition: opacity 0.2s ease;
+  opacity: 0.5; 
+}
+
+.qstat:hover .qstat-gender-mini {
+  opacity: 1; 
 }
 
 .page-shell {

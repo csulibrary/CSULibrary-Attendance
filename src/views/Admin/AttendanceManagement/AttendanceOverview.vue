@@ -57,7 +57,7 @@
             <span class="live-chip"><span class="live-dot"></span>LIVE</span>
           </div>
 
-          <button @click="exportCurrentVisitors" class="export-mini-btn"
+          <button @click="exportAllCurrentVisitors" class="export-mini-btn"
             title="Export list of students currently inside">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
@@ -368,64 +368,107 @@ const normalizeStudent = (s: any): StudentInfo | null =>
 
 
 
+interface AttendanceExportRow {
+  Type: string;
+  Name: string;
+  Gender: string;
+  'Year / Org': string;
+  'College / Purpose': string;
+  'Program / Info': string;
+  'Time In': string;
+  Status: string;
+}
 
-// Helper to export current visitors as XLSX
-const exportCurrentVisitors = async () => {
+const exportAllCurrentVisitors = async () => {
   try {
-    const { start, end } = getPHDateRangeForToday()
+    const { start, end } = getPHDateRangeForToday();
 
-
-    const { data, error } = await supabase
+    // 1. Fetch Students & Events
+    const { data: logs, error: logsErr } = await supabase
       .from('attendance_logs')
       .select(`
         time_in,
-        time_out,
+        attendance_type,
         students:student_id (
           first_name,
           last_name,
+          gender,
+          year_level,
           college,
           program
         )
       `)
-      .eq('attendance_type', 'library')
-      .is('time_out', null)
+      .in('attendance_type', ['library', 'event'])
+      .is('time_out', null) 
       .gte('time_in', start)
       .lte('time_in', end)
-      .order('time_in', { ascending: false })
+      .order('time_in', { ascending: false });
 
-    if (error) throw error
+    // 2. Fetch External Visitors 
+    const { data: visitors, error: visErr } = await supabase
+      .from('attendance_logs_visitors')
+      .select(`
+        time_in,
+        full_name,
+        institution,
+        contact
+      `)
+      // .is('time_out', null) 
+      .gte('time_in', start)
+      .lte('time_in', end)
+      .order('time_in', { ascending: false });
 
-    if (!data || data.length === 0) {
-      showNoAttendanceModal.value = true
-      return
-    }
+    if (logsErr || visErr) throw (logsErr || visErr);
 
+    const combinedList: AttendanceExportRow[] = [];
 
-    const list = data.map(item => {
-      const s = Array.isArray(item.students) ? item.students[0] : item.students
-      return {
-        'Student Name': s ? `${s.last_name.toUpperCase()}, ${s.first_name}` : 'Unknown',
-        'College': s?.college || 'N/A',
-        'Program': s?.program || 'N/A',
+    // Format Students/Events
+    logs?.forEach(item => {
+      const s = Array.isArray(item.students) ? item.students[0] : item.students;
+      combinedList.push({
+        'Type': item.attendance_type.toUpperCase(),
+        'Name': s ? `${s.last_name.toUpperCase()}, ${s.first_name}` : 'Unknown',
+        'Gender': s?.gender || 'N/A',
+        'Year / Org': s?.year_level || 'N/A',
+        'College / Purpose': s?.college || 'N/A',
+        'Program / Info': s?.program || 'N/A',
         'Time In': item.time_in ? new Date(item.time_in).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—',
         'Status': 'STILL INSIDE'
-      }
-    })
+      });
+    });
 
-    // 4. Generate Excel
-    const worksheet = XLSX.utils.json_to_sheet(list)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Live Attendance")
+    // Format External Visitors
+    visitors?.forEach(v => {
+      combinedList.push({
+        'Type': 'VISITOR',
+        'Name': v.full_name?.toUpperCase() || 'Unknown',
+        'Gender': 'N/A',
+        'Year / Org': v.institution || 'N/A',
+        'College / Purpose': v.contact || 'N/A',
+        'Program / Info': 'External',
+        'Time In': v.time_in ? new Date(v.time_in).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—',
+        'Status': 'STILL INSIDE' 
+      });
+    });
 
+    if (combinedList.length === 0) {
+      if (typeof showNoAttendanceModal !== 'undefined') showNoAttendanceModal.value = true;
+      else alert("No one is inside.");
+      return;
+    }
 
-    const dateStr = new Date().toLocaleDateString().replace(/\//g, '-')
-    XLSX.writeFile(workbook, `Library_Still_Inside_${dateStr}.xlsx`)
+    const worksheet = XLSX.utils.json_to_sheet(combinedList);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "All Occupancy");
+
+    const dateStr = new Date().toLocaleDateString().replace(/\//g, '-');
+    XLSX.writeFile(workbook, `Overall_Occupancy_${dateStr}.xlsx`);
 
   } catch (err) {
-    console.error("Export Error:", err)
-    alert("Error occurred while exporting data.")
+    console.error("Export Error:", err);
+    alert("Check console for error details.");
   }
-}
+};
 
 // ─── Data Fetching ───────────────────────────────────────────────────────────
 
@@ -445,12 +488,19 @@ const fetchLiveCountsOptimized = async () => {
     .select('id', { count: 'exact', head: true })
     .gte('time_in', firstDay)
 
-  // 3. Live countsGauge (Today)
-  const [incomingRes, insideRes, outgoingRes] = await Promise.all([
-    supabase.from('attendance_logs').select('id', { count: 'exact', head: true }).eq('attendance_type', 'library').gte('time_in', start).lte('time_in', end),
-    supabase.from('attendance_logs').select('id', { count: 'exact', head: true }).eq('attendance_type', 'library').is('time_out', null).gte('time_in', start).lte('time_in', end),
-    supabase.from('attendance_logs').select('id', { count: 'exact', head: true }).eq('attendance_type', 'library').not('time_out', 'is', null).gte('time_in', start).lte('time_in', end),
+  // 3. Live Counts (Today) - Including Library & Events + External Visitors
+  const [logIncoming, logInside, logOutgoing, visIncoming, visInside, visOutgoing] = await Promise.all([
+    // Counts for Library & Events 
+    supabase.from('attendance_logs').select('id', { count: 'exact', head: true }).in('attendance_type', ['library', 'event']).gte('time_in', start).lte('time_in', end),
+    supabase.from('attendance_logs').select('id', { count: 'exact', head: true }).in('attendance_type', ['library', 'event']).is('time_out', null).gte('time_in', start).lte('time_in', end),
+    supabase.from('attendance_logs').select('id', { count: 'exact', head: true }).in('attendance_type', ['library', 'event']).not('time_out', 'is', null).gte('time_in', start).lte('time_in', end),
+    
+    // Counts for External Visitors 
+    supabase.from('attendance_logs_visitors').select('id', { count: 'exact', head: true }).gte('time_in', start).lte('time_in', end),
+    supabase.from('attendance_logs_visitors').select('id', { count: 'exact', head: true }).is('time_out', null).gte('time_in', start).lte('time_in', end),
+    supabase.from('attendance_logs_visitors').select('id', { count: 'exact', head: true }).not('time_out', 'is', null).gte('time_in', start).lte('time_in', end),
   ])
+  
 
   if (stats && stats.length > 0) {
     const stat = stats[0]
@@ -468,9 +518,9 @@ const fetchLiveCountsOptimized = async () => {
   }
 
   // Live Today Counts
-  visitorsTodayCount.value = incomingRes.count || 0
-  currentlyInsideCount.value = insideRes.count || 0
-  outgoingCount.value = outgoingRes.count || 0
+  visitorsTodayCount.value = (logIncoming.count || 0) + (visIncoming.count || 0)
+  currentlyInsideCount.value = (logInside.count || 0) + (visInside.count || 0)
+  outgoingCount.value = (logOutgoing.count || 0) + (visOutgoing.count || 0)
 }
 
 
@@ -632,7 +682,7 @@ const outgoingBarWidth = computed(() => `${(outgoing.value / flowMax.value) * 10
 const quickStats = computed(() => [
   {
     val: totalLibraryVisits.value,
-    label: "This Month's Visits",
+    label: "Library Attendance",
     delta: 'This Month',
     up: true,
     gender: genderBreakdown.value.library,
@@ -641,7 +691,7 @@ const quickStats = computed(() => [
   {
     val: totalEventVisits.value,
     label: 'Event Attendance',
-    delta: 'Students',
+    delta: 'This Month',
     up: true,
     gender: genderBreakdown.value.event,
     icon: '🎟️'

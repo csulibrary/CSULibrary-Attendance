@@ -674,6 +674,7 @@ const genderByCollege = computed(() => {
     else if (s.gender === 'male') yl.m++
   }
 
+
   return [...map.entries()]
     .map(([name, d]) => ({
       name,

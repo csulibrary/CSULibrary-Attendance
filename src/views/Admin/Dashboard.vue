@@ -230,10 +230,7 @@ function getPHDateRangeForCurrentMonth() {
   }
 }
 
-// ─── OPTIMIZED: User name ─────────────────────────────────────────────────────
-// Auth session is cached by the Supabase client — getSession() is synchronous
-// from cache on repeat calls; getUser() does a network round-trip every time.
-// We use getSession() to avoid the extra /auth/v1/user request after first load.
+
 
 async function fetchUserName(): Promise<string> {
   const { data: session } = await supabase.auth.getSession()
@@ -250,61 +247,51 @@ async function fetchUserName(): Promise<string> {
   return data?.first_name || ''
 }
 
-// ─── OPTIMIZED: Dashboard stats — 2 queries instead of 3 ─────────────────────
-//
-// Previously: 3 separate COUNT queries (monthly, active today, timed-out today)
-// Now:
-//   • 1 HEAD COUNT for monthly (date range too wide to scan rows cheaply)
-//   • 1 lightweight row fetch for today's logs (only time_out column needed),
-//     then derive active (time_out IS NULL) and timed-out (time_out IS NOT NULL)
-//     client-side — eliminates one full round-trip on every refresh.
 
 async function fetchFastDashboardStats() {
   const todayRange = getPHDateRangeForToday()
   const monthRange = getPHDateRangeForCurrentMonth()
 
-  const [fetchedName, monthlyResult, todayResult] = await Promise.all([
+  const [fetchedName, monthlyResult, activeResult, timedOutResult] = await Promise.all([
     fetchUserName(),
 
-    // Monthly: HEAD count — no rows transferred
+    // 1. Monthly Attendance 
     supabase
       .from('attendance_logs')
-      .select('id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('attendance_type', 'library')
       .gte('time_in', monthRange.start)
       .lte('time_in', monthRange.end),
 
-    // Today: fetch only time_out for today's library logs — derive both counts
+    // 2. Active Visitors Today 
     supabase
       .from('attendance_logs')
-      .select('time_out')
+      .select('*', { count: 'exact', head: true })
       .eq('attendance_type', 'library')
+      .is('time_out', null)
+      .gte('time_in', todayRange.start)
+      .lte('time_in', todayRange.end),
+
+    // 3. Timed Out Today 
+    supabase
+      .from('attendance_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('attendance_type', 'library')
+      .not('time_out', 'is', null)
       .gte('time_in', todayRange.start)
       .lte('time_in', todayRange.end),
   ])
 
-  if (monthlyResult.error) console.error('fetchMonthly:', monthlyResult.error)
-  if (todayResult.error)   console.error('fetchToday:', todayResult.error)
-
+  
   firstName.value = fetchedName
-  monthlyAttendance.value = monthlyResult.count ?? 0
-
-  const todayRows = todayResult.data ?? []
-  activeVisitors.value  = todayRows.filter(r => r.time_out === null).length
-  timedOutVisitors.value = todayRows.filter(r => r.time_out !== null).length
-
-  animateValue(displayMonthly,  monthlyAttendance.value)
-  animateValue(displayVisitors,  activeVisitors.value)
-  animateValue(displayTimedOut, timedOutVisitors.value)
+  
+  
+  animateValue(displayMonthly, monthlyResult.count || 0)
+  animateValue(displayVisitors, activeResult.count || 0)
+  animateValue(displayTimedOut, timedOutResult.count || 0)
 }
 
-// ─── OPTIMIZED: Top department — minimal columns, larger batches ──────────────
-//
-// Previously: selected id + attendance_type + students(college) — id and
-//   attendance_type are unused inside the loop; attendance_type is already
-//   filtered by the query predicate.
-// Now: selects only students(college) — smallest possible payload per row.
-// Batch size raised from 300 → 500 to cut pagination round-trips by ~40%.
+
 
 async function fetchTopDepartmentInBackground() {
   const runId = ++topDepartmentRunId

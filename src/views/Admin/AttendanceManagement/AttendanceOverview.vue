@@ -24,33 +24,31 @@
         </div>
       </header>
 
-     <div class="stat-strip">
-  <div
-    v-for="(s, i) in quickStats"
-    :key="s.label"
-    class="qstat"
-    :style="{ animationDelay: 0.25 + i * 0.08 + 's' }"
-  >
-    <div class="qstat-icon" v-html="s.icon"></div>
-    <div>
-      <p class="qstat-val">{{ s.val }}</p>
-      <p class="qstat-label">{{ s.label }}</p>
-      
-      <!-- Gender Breakdown  -->
-      <div v-if="s.gender" class="qstat-gender-mini">
-        <span class="m-text">♂ {{ s.gender.male }}</span>
-        <!-- <span class="divider">|</span> -->
-        <span class="f-text">♀ {{ s.gender.female }}</span>
+      <div class="stat-strip">
+        <div v-for="(s, i) in quickStats" :key="s.label" class="qstat"
+          :style="{ animationDelay: 0.25 + i * 0.08 + 's' }">
+          <div class="qstat-icon" v-html="s.icon"></div>
+          <div>
+            <p class="qstat-val">{{ s.val }}</p>
+            <p class="qstat-label">{{ s.label }}</p>
+
+
+            <!-- Gender Breakdown -->
+            <div v-if="s.gender && typeof s.gender === 'object'" class="qstat-gender-mini">
+              <span class="m-text">♂ {{ s.gender.male ?? 0 }}</span>
+              <span class="f-text">♀ {{ s.gender.female ?? 0 }}</span>
+            </div>
+          </div>
+
+
+
+          <span class="qstat-badge" :class="s.up ? 'qstat-badge--up' : 'qstat-badge--dn'">
+            {{ s.delta }}
+          </span>
+        </div>
       </div>
-    </div>
 
-    <span class="qstat-badge" :class="s.up ? 'qstat-badge--up' : 'qstat-badge--dn'">
-      {{ s.delta }}
-    </span>
-  </div>
-</div>
 
-      
 
       <div class="main-grid">
         <div class="dial-card enhanced">
@@ -59,44 +57,25 @@
             <span class="live-chip"><span class="live-dot"></span>LIVE</span>
           </div>
 
+          <button @click="exportAllCurrentVisitors" class="export-mini-btn"
+            title="Export list of students currently inside">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            Export Active Occupants
+          </button>
+
           <div class="gauge-wrap">
             <svg viewBox="0 0 320 320" class="gauge-svg">
-              <circle
-                cx="160"
-                cy="160"
-                r="120"
-                fill="none"
-                stroke="rgba(13,43,15,0.05)"
-                stroke-width="20"
-              />
+              <circle cx="160" cy="160" r="120" fill="none" stroke="rgba(13,43,15,0.05)" stroke-width="20" />
 
-              <circle
-                cx="160"
-                cy="160"
-                r="120"
-                fill="none"
-                stroke="url(#gaugeGrad)"
-                stroke-width="20"
-                stroke-linecap="round"
-                :stroke-dasharray="754"
-                :stroke-dashoffset="754 - (754 * gaugeFillPercent) / 100"
-                transform="rotate(-90 160 160)"
-                class="gauge-arc"
-              />
+              <circle cx="160" cy="160" r="120" fill="none" stroke="url(#gaugeGrad)" stroke-width="20"
+                stroke-linecap="round" :stroke-dasharray="754" :stroke-dashoffset="754 - (754 * gaugeFillPercent) / 100"
+                transform="rotate(-90 160 160)" class="gauge-arc" />
 
-              <circle
-                cx="160"
-                cy="160"
-                r="120"
-                fill="none"
-                stroke="url(#gaugeGlow)"
-                stroke-width="28"
-                stroke-linecap="round"
-                :stroke-dasharray="754"
-                :stroke-dashoffset="754 - (754 * gaugeFillPercent) / 100"
-                transform="rotate(-90 160 160)"
-                class="gauge-glow"
-              />
+              <circle cx="160" cy="160" r="120" fill="none" stroke="url(#gaugeGlow)" stroke-width="28"
+                stroke-linecap="round" :stroke-dasharray="754" :stroke-dashoffset="754 - (754 * gaugeFillPercent) / 100"
+                transform="rotate(-90 160 160)" class="gauge-glow" />
 
               <defs>
                 <linearGradient id="gaugeGrad">
@@ -116,16 +95,13 @@
                 <span class="gauge-pct">{{ gaugeCount }}</span>
               </div>
 
-              <span class="gauge-sublabel">STUDENTS TODAY</span>
+              <span class="gauge-sublabel">Active Occupants</span>
 
-              <span
-                class="gauge-status"
-                :class="{
-                  low: gaugeCount <= 10,
-                  mid: gaugeCount > 10 && gaugeCount <= 30,
-                  high: gaugeCount > 30,
-                }"
-              >
+              <span class="gauge-status" :class="{
+                low: gaugeCount <= 10,
+                mid: gaugeCount > 10 && gaugeCount <= 30,
+                high: gaugeCount > 30,
+              }">
                 {{ gaugeStatus }}
               </span>
             </div>
@@ -137,7 +113,7 @@
                 <div class="flow-bar flow-bar--in" :style="{ width: incomingBarWidth }"></div>
               </div>
               <div class="flow-info">
-                <span class="flow-label">Incoming</span>
+                <span class="flow-label">Timed In</span>
                 <span class="flow-num flow-num--in">{{ visitorsToday }}</span>
               </div>
             </div>
@@ -149,7 +125,7 @@
                 <div class="flow-bar flow-bar--out" :style="{ width: outgoingBarWidth }"></div>
               </div>
               <div class="flow-info">
-                <span class="flow-label">Outgoing</span>
+                <span class="flow-label">Timed Out</span>
                 <span class="flow-num flow-num--out">{{ outgoing }}</span>
               </div>
             </div>
@@ -160,7 +136,7 @@
           <div class="ctrl-header">
             <div>
               <p class="ctrl-eyebrow">Data Orchestration</p>
-              <h3 class="ctrl-title">Attendance <em>Overview</em></h3>
+              <h3 class="ctrl-title">Admin <em>Activities</em></h3>
               <p class="ctrl-sub">All export data</p>
             </div>
           </div>
@@ -189,12 +165,8 @@
                     <td colspan="4" class="empty-state-cell">No export history found.</td>
                   </tr>
 
-                  <tr
-                    v-for="(log, i) in exportLogs"
-                    :key="log.id"
-                    class="erow"
-                    :style="{ animationDelay: 0.6 + i * 0.07 + 's' }"
-                  >
+                  <tr v-for="(log, i) in exportLogs" :key="log.id" class="erow"
+                    :style="{ animationDelay: 0.6 + i * 0.07 + 's' }">
                     <td class="erow-date">
                       <span class="erow-date__main">{{ log.date }}</span>
                       <span class="erow-date__time">{{ log.time }}</span>
@@ -221,13 +193,29 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showNoAttendanceModal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>No Students Inside</h2>
+
+    <p>
+      There are no active students currently inside the library.
+      Nothing to export.
+    </p>
+
+    <button @click="showNoAttendanceModal = false">
+      OK
+    </button>
+  </div>
+</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
 import { supabase } from '@/lib/supabase'
+import * as XLSX from 'xlsx'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -264,10 +252,24 @@ type ExportLogView = {
   fileName: string
 }
 
-// ─── State ────────────────────────────────────────────────────────────────────
+type GenderData = {
+  male: number
+  female: number
+}
 
+type QuickStat = {
+  val: string | number
+  label: string
+  delta: string
+  up: boolean
+  icon: string
+  gender?: GenderData | null
+}
+
+// ─── State ────────────────────────────────────────────────────────────────────
 const loading = ref(false)
 const exportLogs = ref<ExportLogView[]>([])
+const showNoAttendanceModal = ref(false)
 
 // Real-time Counters (Today)
 const totalLibraryVisits = ref(0) // Monthly Total
@@ -302,6 +304,14 @@ let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
 // ─── Date Helpers ─────────────────────────────────────────────────────────────
 
+watch(showNoAttendanceModal, (val) => {
+  if (val) {
+    setTimeout(() => {
+      showNoAttendanceModal.value = false
+    }, 3000)
+  }
+})
+
 const getTodayPH = () =>
   new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Manila',
@@ -315,7 +325,6 @@ const getPHDateRangeForToday = () => {
 
 const getThisMonthRange = () => {
   const now = new Date()
-  // First day of current month 
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   return { firstDay }
 }
@@ -357,64 +366,167 @@ const getDurationMinutes = (log: any) => {
 const normalizeStudent = (s: any): StudentInfo | null =>
   Array.isArray(s) ? s[0] || null : s || null
 
+
+
+interface AttendanceExportRow {
+  Type: string;
+  Name: string;
+  Gender: string;
+  'Year / Org': string;
+  'College / Purpose': string;
+  'Program / Info': string;
+  'Time In': string;
+  Status: string;
+}
+
+const exportAllCurrentVisitors = async () => {
+  try {
+    const { start, end } = getPHDateRangeForToday();
+
+    // 1. Fetch Students & Events
+    const { data: logs, error: logsErr } = await supabase
+      .from('attendance_logs')
+      .select(`
+        time_in,
+        attendance_type,
+        students:student_id (
+          first_name,
+          last_name,
+          gender,
+          year_level,
+          college,
+          program
+        )
+      `)
+      .in('attendance_type', ['library', 'event'])
+      .is('time_out', null) 
+      .gte('time_in', start)
+      .lte('time_in', end)
+      .order('time_in', { ascending: false });
+
+    // 2. Fetch External Visitors 
+    const { data: visitors, error: visErr } = await supabase
+      .from('attendance_logs_visitors')
+      .select(`
+        time_in,
+        full_name,
+        institution,
+        contact
+      `)
+      // .is('time_out', null) 
+      .gte('time_in', start)
+      .lte('time_in', end)
+      .order('time_in', { ascending: false });
+
+    if (logsErr || visErr) throw (logsErr || visErr);
+
+    const combinedList: AttendanceExportRow[] = [];
+
+    // Format Students/Events
+    logs?.forEach(item => {
+      const s = Array.isArray(item.students) ? item.students[0] : item.students;
+      combinedList.push({
+        'Type': item.attendance_type.toUpperCase(),
+        'Name': s ? `${s.last_name.toUpperCase()}, ${s.first_name}` : 'Unknown',
+        'Gender': s?.gender || 'N/A',
+        'Year / Org': s?.year_level || 'N/A',
+        'College / Purpose': s?.college || 'N/A',
+        'Program / Info': s?.program || 'N/A',
+        'Time In': item.time_in ? new Date(item.time_in).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—',
+        'Status': 'STILL INSIDE'
+      });
+    });
+
+    // Format External Visitors
+    visitors?.forEach(v => {
+      combinedList.push({
+        'Type': 'VISITOR',
+        'Name': v.full_name?.toUpperCase() || 'Unknown',
+        'Gender': 'N/A',
+        'Year / Org': v.institution || 'N/A',
+        'College / Purpose': v.contact || 'N/A',
+        'Program / Info': 'External',
+        'Time In': v.time_in ? new Date(v.time_in).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—',
+        'Status': 'STILL INSIDE' 
+      });
+    });
+
+    if (combinedList.length === 0) {
+      if (typeof showNoAttendanceModal !== 'undefined') showNoAttendanceModal.value = true;
+      else alert("No one is inside.");
+      return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(combinedList);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "All Occupancy");
+
+    const dateStr = new Date().toLocaleDateString().replace(/\//g, '-');
+    XLSX.writeFile(workbook, `Overall_Occupancy_${dateStr}.xlsx`);
+
+  } catch (err) {
+    console.error("Export Error:", err);
+    alert("Check console for error details.");
+  }
+};
+
 // ─── Data Fetching ───────────────────────────────────────────────────────────
 
 const fetchLiveCountsOptimized = async () => {
   const { start, end } = getPHDateRangeForToday()
   const { firstDay } = getThisMonthRange()
 
-  const [libData, evtData, visRes, todayRes] = await Promise.all([
-    // Fetch Library with Student Gender
-    supabase.from('attendance_logs')
-      .select('students(gender)')
-      .eq('attendance_type', 'library')
-      .gte('time_in', firstDay),
+  // 1.stats  View (Monthly)
+  const { data: stats, error: statsErr } = await supabase
+    .from('dashboard_stats')
+    .select('*')
+    .limit(1)
+
+  // 2. Visitors count 
+  const { count: visitorCount } = await supabase
+    .from('attendance_logs_visitors')
+    .select('id', { count: 'exact', head: true })
+    .gte('time_in', firstDay)
+
+  // 3. Live Counts (Today) - Including Library & Events + External Visitors
+  const [logIncoming, logInside, logOutgoing, visIncoming, visInside, visOutgoing] = await Promise.all([
+    // Counts for Library & Events 
+    supabase.from('attendance_logs').select('id', { count: 'exact', head: true }).in('attendance_type', ['library', 'event']).gte('time_in', start).lte('time_in', end),
+    supabase.from('attendance_logs').select('id', { count: 'exact', head: true }).in('attendance_type', ['library', 'event']).is('time_out', null).gte('time_in', start).lte('time_in', end),
+    supabase.from('attendance_logs').select('id', { count: 'exact', head: true }).in('attendance_type', ['library', 'event']).not('time_out', 'is', null).gte('time_in', start).lte('time_in', end),
     
-    // Fetch Event with Student Gender
-    supabase.from('attendance_logs')
-      .select('students(gender)')
-      .eq('attendance_type', 'event')
-      .gte('time_in', firstDay),
-
-    // Visitors (Monthly)
-    supabase.from('attendance_logs_visitors').select('id', { count: 'exact', head: true }).gte('time_in', firstDay),
-
-    // Today's Library Activity
-    supabase.from('attendance_logs').select('time_in, time_out').eq('attendance_type', 'library').gte('time_in', start)
+    // Counts for External Visitors 
+    supabase.from('attendance_logs_visitors').select('id', { count: 'exact', head: true }).gte('time_in', start).lte('time_in', end),
+    supabase.from('attendance_logs_visitors').select('id', { count: 'exact', head: true }).is('time_out', null).gte('time_in', start).lte('time_in', end),
+    supabase.from('attendance_logs_visitors').select('id', { count: 'exact', head: true }).not('time_out', 'is', null).gte('time_in', start).lte('time_in', end),
   ])
-
-  // Helper function 
-  const countGender = (data: any[]) => {
-    return data.reduce((acc, curr) => {
-      const g = curr.students?.gender?.toLowerCase()
-      if (g === 'male') acc.male++
-      else if (g === 'female') acc.female++
-      return acc
-    }, { male: 0, female: 0 })
-  }
-
-  // Assign Counts
-  const libGenders = countGender(libData.data || [])
-  const evtGenders = countGender(evtData.data || [])
   
-  genderBreakdown.value.library = libGenders
-  genderBreakdown.value.event = evtGenders
-  genderBreakdown.value.overall = {
-    male: libGenders.male + evtGenders.male,
-    female: libGenders.female + evtGenders.female
+
+  if (stats && stats.length > 0) {
+    const stat = stats[0]
+    totalLibraryVisits.value = stat.total_library || 0
+    totalEventVisits.value = stat.total_event || 0
+    totalVisitorVisits.value = visitorCount || 0
+    totalOverallVisits.value = (stat.total_library || 0) + (stat.total_event || 0) + (visitorCount || 0)
+
+    genderBreakdown.value.library = { male: stat.library_male || 0, female: stat.library_female || 0 }
+    genderBreakdown.value.event = { male: stat.event_male || 0, female: stat.event_female || 0 }
+    genderBreakdown.value.overall = {
+      male: (stat.library_male || 0) + (stat.event_male || 0),
+      female: (stat.library_female || 0) + (stat.event_female || 0)
+    }
   }
 
-  totalLibraryVisits.value = libData.data?.length || 0
-  totalEventVisits.value = evtData.data?.length || 0
-  totalVisitorVisits.value = visRes.count || 0
-  totalOverallVisits.value = totalLibraryVisits.value + totalEventVisits.value + totalVisitorVisits.value
-
-  // Today's Gauge logic...
-  const rows = todayRes.data ?? []
-  visitorsTodayCount.value = rows.length
-  currentlyInsideCount.value = rows.filter(r => r.time_out === null).length
-  outgoingCount.value = rows.filter(r => r.time_out !== null).length
+  // Live Today Counts
+  visitorsTodayCount.value = (logIncoming.count || 0) + (visIncoming.count || 0)
+  currentlyInsideCount.value = (logInside.count || 0) + (visInside.count || 0)
+  outgoingCount.value = (logOutgoing.count || 0) + (visOutgoing.count || 0)
 }
+
+
+
+
+
 
 const fetchAnalyticsOptimized = async () => {
   const runId = ++analyticsRunId
@@ -444,7 +556,7 @@ const fetchAnalyticsOptimized = async () => {
           students!attendance_logs_student_id_fkey (college, program, year_level)
         `)
         .eq('attendance_type', 'library')
-        .gte('time_in', firstDay) // FILTER: This Month Only
+        .gte('time_in', firstDay) 
         .order('time_in', { ascending: false })
         .range(from, from + batchSize - 1)
 
@@ -531,7 +643,7 @@ const fetchExportLogs = async () => {
 
 onMounted(async () => {
   await Promise.all([fetchLiveCountsOptimized(), fetchAnalyticsOptimized(), fetchExportLogs()])
-  
+
   liveChannel = supabase.channel('attendance-db-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_logs' }, () => {
       if (refreshTimer) clearTimeout(refreshTimer)
@@ -555,7 +667,7 @@ const outgoing = computed(() => outgoingCount.value)
 const currentlyInside = computed(() => currentlyInsideCount.value)
 const gaugeCount = computed(() => currentlyInside.value)
 
-const gaugeFillPercent = computed(() => Math.min((gaugeCount.value / 50) * 100, 100)) 
+const gaugeFillPercent = computed(() => Math.min((gaugeCount.value / 50) * 100, 100))
 const gaugeStatus = computed(() => {
   if (gaugeCount.value === 0) return 'No Active Visitors'
   if (gaugeCount.value <= 10) return 'Low Traffic'
@@ -568,156 +680,288 @@ const incomingBarWidth = computed(() => `${(visitorsToday.value / flowMax.value)
 const outgoingBarWidth = computed(() => `${(outgoing.value / flowMax.value) * 100}%`)
 
 const quickStats = computed(() => [
-  { val: totalLibraryVisits.value, label: 'Monthly Visits (Library)', delta: 'This Month', up: true, gender: genderBreakdown.value.library, icon: '👤' },
-  { 
-    val: totalEventVisits.value, 
-    label: 'Event Attendance', 
-    delta: 'Students', 
+  {
+    val: totalLibraryVisits.value,
+    label: "Library Attendance",
+    delta: 'This Month',
+    up: true,
+    gender: genderBreakdown.value.library,
+    icon: '👤'
+  },
+  {
+    val: totalEventVisits.value,
+    label: 'Event Attendance',
+    delta: 'This Month',
     up: true,
     gender: genderBreakdown.value.event,
-    icon: '🎟️' 
+    icon: '🎟️'
   },
-    { 
-      val: totalVisitorVisits.value, 
-      label: 'Visitor Attendance', 
-      delta: 'Visitors', 
-      up: true, 
-      icon: '🧑‍🤝‍🧑' 
-    },
-  { val: totalOverallVisits.value, label: 'Attendance (all types)', delta: 'This Month', up: true, gender: genderBreakdown.value.overall, icon: '📊' },
-  { val: topPeakHour.value?.label || 'N/A', label: 'Peak Hour', delta: topPeakHour.value ? `${topPeakHour.value.visits} vists` : '—', up: true, icon: '⏰' },
+  {
+    val: totalVisitorVisits.value,
+    label: 'Visitor Attendance',
+    delta: 'Visitors',
+    up: true,
+    gender: null,
+    icon: '🧑‍🤝‍🧑'
+  },
+  {
+    val: totalOverallVisits.value,
+    label: 'Total Visits (This Month)',
+    delta: 'Overall',
+    up: true,
+    gender: genderBreakdown.value.overall,
+    icon: '📊'
+  },  { val: topPeakHour.value?.label || 'N/A', label: 'Peak Hour', delta: topPeakHour.value ? `${topPeakHour.value.visits} vists` : '—', up: true, icon: '⏰' },
   { val: topPeakDay.value?.day || 'N/A', label: 'Peak Day', delta: topPeakDay.value ? `${topPeakDay.value.visits} visits` : '—', up: true, icon: '📅' },
   { val: averageStayDurationText.value, label: 'Avg. Stay', delta: 'Per Session', up: true, icon: '⏳' },
   { val: topCollege.value?.name || 'N/A', label: 'Top College', delta: 'Monthly', up: true, icon: '🎓' },
   { val: topProgram.value?.name || 'N/A', label: 'Top Program', delta: 'Monthly', up: true, icon: '📚' },
-  { val: topYearLevel.value ? `Year ${topYearLevel.value.name}` : 'N/A', label: 'Top Year', delta: 'Monthly', up: true, icon: '⭐' },
+  { val: topYearLevel.value ? `Year ${topYearLevel.value.name}` : 'N/A', label: 'Top Year Level', delta: 'Monthly', up: true, icon: '⭐' },
 ])
 
 const handleTabChange = (n: string) => console.log(n)
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,600;0,700;0,900;1,700;1,900&family=DM+Sans:wght@400;500;600;700&display=swap');
 
 @keyframes fadeUp {
   from {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
+
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
 }
+
 @keyframes slideRight {
   from {
     opacity: 0;
     transform: translateX(-16px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
   }
 }
+
 @keyframes scaleIn {
   from {
     opacity: 0;
     transform: scale(0.88);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
   }
 }
+
 @keyframes scaleInBounce {
   from {
     opacity: 0;
     transform: scale(0.7);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
   }
 }
+
 @keyframes arcDraw {
   from {
     stroke-dashoffset: 691.2;
   }
+
   to {
     stroke-dashoffset: 43.9;
   }
 }
+
 @keyframes countUp {
   from {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
+
 @keyframes ping {
+
   0%,
   100% {
     transform: scale(1);
     opacity: 0.4;
   }
+
   50% {
     transform: scale(1.8);
     opacity: 0;
   }
 }
+
 @keyframes underlineGrow {
   from {
     transform: scaleX(0);
   }
+
   to {
     transform: scaleX(1);
   }
 }
 
 
+/* modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-in-out;
+   overflow: hidden;
+}
+
+.modal-box {
+  width: 320px;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  animation: popIn 0.2s ease-in-out;
+   overflow: hidden;
+}
+
+.modal-box h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #111827;
+}
+
+.modal-box p {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 18px;
+  line-height: 1.4;
+}
+
+.modal-box button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.modal-box button:hover {
+  background: #1f2937;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.dial-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.export-mini-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(249, 168, 37, 0.1);
+  border: 1px solid rgba(249, 168, 37, 0.3);
+  border-radius: 6px;
+  color: #0d2b0f;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.export-mini-btn:hover {
+  background: #f9a825;
+  color: white;
+  border-color: #f9a825;
+}
+
+.export-mini-btn svg {
+  stroke: currentColor;
+}
+
 .qstat {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-bottom: 12px; 
+  padding-bottom: 12px;
 }
 
 .qstat-gender-mini {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: .85rem; 
+  font-size: .85rem;
   margin-top: 4px;
   font-weight: 500;
   opacity: 0.8;
 }
 
 .m-text {
-  color: #60a5fa; 
+  color: #60a5fa;
 }
 
 .f-text {
-  color: #f472b6; 
+  color: #f472b6;
 }
 
 .qstat-gender-mini {
   transition: opacity 0.2s ease;
-  opacity: 0.5; 
+  opacity: 0.5;
 }
 
 .qstat:hover .qstat-gender-mini {
-  opacity: 1; 
+  opacity: 1;
 }
 
 .page-shell {
@@ -735,9 +979,11 @@ const handleTabChange = (n: string) => console.log(n)
   padding: 40px 48px 80px 48px;
   box-sizing: border-box;
 }
+
 .page-scroll::-webkit-scrollbar {
   width: 5px;
 }
+
 .page-scroll::-webkit-scrollbar-thumb {
   background: rgba(13, 43, 15, 0.1);
   border-radius: 5px;
@@ -763,6 +1009,7 @@ const handleTabChange = (n: string) => console.log(n)
   margin-bottom: 8px;
   animation: slideRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
+
 .header-breadcrumb svg {
   width: 12px;
   height: 12px;
@@ -779,16 +1026,20 @@ const handleTabChange = (n: string) => console.log(n)
   display: inline-block;
   animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
 }
+
 .hero-word-dark {
   color: #0d2b0f;
 }
+
 .hero-word-gold {
   color: #e6a800;
 }
+
 .hero-underlined {
   position: relative;
   display: inline-block;
 }
+
 .hero-underlined::after {
   content: '';
   position: absolute;
@@ -801,6 +1052,7 @@ const handleTabChange = (n: string) => console.log(n)
   transform-origin: left;
   animation: underlineGrow 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
 }
+
 .hero-subtitle {
   font-size: 0.88rem;
   font-weight: 400;
@@ -836,7 +1088,7 @@ const handleTabChange = (n: string) => console.log(n)
 .attn-actions button.action-active {
   background: #0d2b0f;
   color: #ffffff;
-  border: 1.5px solid #0d2b0f; 
+  border: 1.5px solid #0d2b0f;
 }
 
 .stat-strip {
@@ -845,6 +1097,7 @@ const handleTabChange = (n: string) => console.log(n)
   gap: 12px;
   margin-bottom: 28px;
 }
+
 .qstat {
   background: white;
   border: 1px solid rgba(13, 43, 15, 0.07);
@@ -859,10 +1112,12 @@ const handleTabChange = (n: string) => console.log(n)
     transform 0.2s,
     box-shadow 0.2s;
 }
+
 .qstat:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(13, 43, 15, 0.09);
 }
+
 .qstat-icon {
   width: 40px;
   height: 40px;
@@ -874,6 +1129,7 @@ const handleTabChange = (n: string) => console.log(n)
   justify-content: center;
   flex-shrink: 0;
 }
+
 .qstat-val {
   font-size: 1.4rem;
   font-weight: 700;
@@ -882,6 +1138,7 @@ const handleTabChange = (n: string) => console.log(n)
   line-height: 1;
   margin: 0 0 2px;
 }
+
 .qstat-label {
   font-size: 0.58rem;
   font-weight: 600;
@@ -890,6 +1147,7 @@ const handleTabChange = (n: string) => console.log(n)
   letter-spacing: 0.1em;
   margin: 0;
 }
+
 .qstat-badge {
   margin-left: auto;
   flex-shrink: 0;
@@ -898,10 +1156,12 @@ const handleTabChange = (n: string) => console.log(n)
   padding: 3px 8px;
   border-radius: 7px;
 }
+
 .qstat-badge--up {
   background: rgba(27, 94, 32, 0.08);
   color: #1b5e20;
 }
+
 .qstat-badge--dn {
   background: rgba(198, 40, 40, 0.07);
   color: #c62828;
@@ -923,12 +1183,14 @@ const handleTabChange = (n: string) => console.log(n)
   box-shadow: 0 4px 24px rgba(13, 43, 15, 0.06);
   animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
 }
+
 .dial-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
 }
+
 .section-eyebrow {
   font-size: 0.6rem;
   font-weight: 700;
@@ -936,6 +1198,7 @@ const handleTabChange = (n: string) => console.log(n)
   letter-spacing: 0.18em;
   color: rgba(13, 43, 15, 0.35);
 }
+
 .live-chip {
   display: flex;
   align-items: center;
@@ -950,6 +1213,7 @@ const handleTabChange = (n: string) => console.log(n)
   letter-spacing: 0.18em;
   animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.7s both;
 }
+
 .live-dot {
   width: 5px;
   height: 5px;
@@ -966,15 +1230,18 @@ const handleTabChange = (n: string) => console.log(n)
   align-items: center;
   justify-content: center;
 }
+
 .gauge-svg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
+
 .gauge-arc {
   animation: arcDraw 1.6s cubic-bezier(0.16, 1, 0.3, 1) 0.8s both;
 }
+
 .gauge-center {
   position: relative;
   z-index: 10;
@@ -984,11 +1251,13 @@ const handleTabChange = (n: string) => console.log(n)
   align-items: center;
   gap: 2px;
 }
+
 .gauge-num {
   display: flex;
   align-items: flex-start;
   line-height: 1;
 }
+
 .gauge-pct {
   font-family: 'Poppins', sans-serif;
   font-size: 6rem;
@@ -998,6 +1267,7 @@ const handleTabChange = (n: string) => console.log(n)
   line-height: 1;
   animation: countUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.9s both;
 }
+
 .gauge-sublabel {
   font-size: 0.5rem;
   font-weight: 700;
@@ -1006,6 +1276,7 @@ const handleTabChange = (n: string) => console.log(n)
   text-transform: uppercase;
   animation: fadeIn 0.4s ease 1.4s both;
 }
+
 .gauge-status {
   margin-top: 6px;
   font-size: 0.62rem;
@@ -1015,14 +1286,17 @@ const handleTabChange = (n: string) => console.log(n)
   padding: 6px 12px;
   border-radius: 999px;
 }
+
 .gauge-status.low {
   background: rgba(249, 168, 37, 0.14);
   color: #9a6500;
 }
+
 .gauge-status.mid {
   background: rgba(13, 43, 15, 0.1);
   color: #0d2b0f;
 }
+
 .gauge-status.high {
   background: rgba(46, 125, 50, 0.12);
   color: #2e7d32;
@@ -1037,15 +1311,18 @@ const handleTabChange = (n: string) => console.log(n)
   margin-top: 12px;
   animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 1.4s both;
 }
+
 .flow-col {
   flex: 1;
 }
+
 .flow-divider {
   width: 1px;
   background: rgba(13, 43, 15, 0.08);
   margin: 0 20px;
   align-self: stretch;
 }
+
 .flow-bar-wrap {
   height: 3px;
   background: rgba(13, 43, 15, 0.07);
@@ -1053,23 +1330,28 @@ const handleTabChange = (n: string) => console.log(n)
   overflow: hidden;
   margin-bottom: 8px;
 }
+
 .flow-bar {
   height: 100%;
   border-radius: 2px;
   width: 0;
   transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
 .flow-bar--in {
   background: #f9a825;
 }
+
 .flow-bar--out {
   background: rgba(13, 43, 15, 0.2);
 }
+
 .flow-info {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
+
 .flow-label {
   font-size: 0.55rem;
   font-weight: 700;
@@ -1077,6 +1359,7 @@ const handleTabChange = (n: string) => console.log(n)
   letter-spacing: 0.16em;
   color: rgba(13, 43, 15, 0.35);
 }
+
 .flow-num {
   font-family: 'Poppins', sans-serif;
   font-size: 1.4rem;
@@ -1084,9 +1367,11 @@ const handleTabChange = (n: string) => console.log(n)
   letter-spacing: -0.03em;
   color: rgba(13, 43, 15, 0.3);
 }
+
 .flow-num--in {
   color: #0d2b0f;
 }
+
 .flow-num--out {
   color: rgba(13, 43, 15, 0.3);
 }
@@ -1096,6 +1381,7 @@ const handleTabChange = (n: string) => console.log(n)
   flex-direction: column;
   gap: 16px;
 }
+
 .ctrl-header {
   display: flex;
   align-items: flex-start;
@@ -1103,6 +1389,7 @@ const handleTabChange = (n: string) => console.log(n)
   gap: 16px;
   animation: fadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
 }
+
 .ctrl-eyebrow {
   font-size: 0.58rem;
   font-weight: 700;
@@ -1111,6 +1398,7 @@ const handleTabChange = (n: string) => console.log(n)
   color: #c8930a;
   margin: 0 0 4px;
 }
+
 .ctrl-title {
   font-family: 'Poppins', sans-serif;
   font-size: clamp(1.6rem, 2.2vw, 2rem);
@@ -1120,10 +1408,12 @@ const handleTabChange = (n: string) => console.log(n)
   line-height: 0.95;
   margin: 0 0 4px;
 }
+
 .ctrl-title em {
   font-style: italic;
   color: #f9a825;
 }
+
 .ctrl-sub {
   font-size: 0.72rem;
   color: rgba(13, 43, 15, 0.4);
@@ -1153,12 +1443,15 @@ const handleTabChange = (n: string) => console.log(n)
   overflow: hidden;
   transition: all 0.2s;
 }
+
 .sync-btn--1 {
   animation: scaleIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
 }
+
 .sync-btn--2 {
   animation: scaleIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.62s both;
 }
+
 .sync-btn::after {
   content: '';
   position: absolute;
@@ -1167,11 +1460,13 @@ const handleTabChange = (n: string) => console.log(n)
   transform: translateX(-100%);
   transition: transform 0.7s;
 }
+
 .sync-btn:hover {
   background: #1b5e20;
   transform: translateY(-2px);
   box-shadow: 0 10px 28px rgba(13, 43, 15, 0.25);
 }
+
 .sync-btn:hover::after {
   transform: translateX(100%);
 }
@@ -1256,9 +1551,11 @@ const handleTabChange = (n: string) => console.log(n)
   flex-direction: column;
   gap: 2px;
 }
+
 .erow-date__main {
   font-weight: 700;
 }
+
 .erow-date__time {
   font-size: 0.72rem;
   color: rgba(13, 43, 15, 0.45);
@@ -1269,6 +1566,7 @@ const handleTabChange = (n: string) => console.log(n)
   align-items: center;
   gap: 10px;
 }
+
 .erow-avatar {
   width: 32px;
   height: 32px;
@@ -1297,14 +1595,17 @@ const handleTabChange = (n: string) => console.log(n)
   background: rgba(46, 125, 50, 0.1);
   color: #2e7d32;
 }
+
 .etype-badge--xlsx {
   background: rgba(13, 43, 15, 0.1);
   color: #0d2b0f;
 }
+
 .etype-badge--pdf {
   background: rgba(198, 40, 40, 0.1);
   color: #c62828;
 }
+
 .etype-badge--file {
   background: rgba(13, 43, 15, 0.08);
   color: #0d2b0f;
@@ -1321,6 +1622,7 @@ const handleTabChange = (n: string) => console.log(n)
   background: rgba(46, 125, 50, 0.1);
   color: #2e7d32;
 }
+
 .estatus--success .estatus-dot {
   background: #2e7d32;
 }
@@ -1329,6 +1631,7 @@ const handleTabChange = (n: string) => console.log(n)
   background: rgba(249, 168, 37, 0.14);
   color: #9a6500;
 }
+
 .estatus--pending .estatus-dot {
   background: #f9a825;
 }
@@ -1337,6 +1640,7 @@ const handleTabChange = (n: string) => console.log(n)
   background: rgba(198, 40, 40, 0.1);
   color: #c62828;
 }
+
 .estatus--failed .estatus-dot {
   background: #c62828;
 }

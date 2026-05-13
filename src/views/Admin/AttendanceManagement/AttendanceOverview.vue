@@ -25,13 +25,18 @@
       </header>
 
       <div class="stat-strip">
-        <div v-for="(s, i) in quickStats" :key="s.label" class="qstat"
-          :style="{ animationDelay: 0.25 + i * 0.08 + 's' }">
+        <div 
+          v-for="(s, i) in quickStats" 
+          :key="s.label" 
+          class="qstat"
+          :class="{ 'qstat-clickable': s.label === 'Top College' || s.label === 'Top Program' }"
+          :style="{ animationDelay: 0.25 + i * 0.08 + 's' }"
+          @click="handleQuickStatClick(s.label)"
+        >
           <div class="qstat-icon" v-html="s.icon"></div>
           <div>
             <p class="qstat-val">{{ s.val }}</p>
             <p class="qstat-label">{{ s.label }}</p>
-
 
             <!-- Gender Breakdown -->
             <div v-if="s.gender && typeof s.gender === 'object'" class="qstat-gender-mini">
@@ -40,15 +45,11 @@
             </div>
           </div>
 
-
-
           <span class="qstat-badge" :class="s.up ? 'qstat-badge--up' : 'qstat-badge--dn'">
             {{ s.delta }}
           </span>
         </div>
       </div>
-
-
 
       <div class="main-grid">
         <div class="dial-card enhanced">
@@ -195,19 +196,55 @@
     </div>
 
     <div v-if="showNoAttendanceModal" class="modal-overlay">
-  <div class="modal-box">
-    <h2>No Students Inside</h2>
+      <div class="modal-box">
+        <h2>No Students Inside</h2>
 
-    <p>
-      There are no active students currently inside the library.
-      Nothing to export.
-    </p>
+        <p>
+          There are no active students currently inside the library.
+          Nothing to export.
+        </p>
 
-    <button @click="showNoAttendanceModal = false">
-      OK
-    </button>
-  </div>
-</div>
+        <button @click="showNoAttendanceModal = false">
+          OK
+        </button>
+      </div>
+    </div>
+
+    <div v-if="showTopListModal" class="modal-overlay">
+      <div class="top-list-modal-box">
+        <div class="top-list-header">
+          <div>
+            <p class="top-list-eyebrow">Monthly Ranking</p>
+            <h2>{{ topListTitle }}</h2>
+          </div>
+
+          <button class="top-list-close" @click="showTopListModal = false">
+            ×
+          </button>
+        </div>
+
+        <div v-if="selectedTopList.length === 0" class="top-list-empty">
+          No records found.
+        </div>
+
+        <div v-else class="top-list">
+          <div v-for="(item, index) in selectedTopList" :key="item.name" class="top-list-item">
+            <div class="top-rank">
+              {{ index + 1 }}
+            </div>
+
+            <div class="top-info">
+              <p class="top-name">{{ item.name }}</p>
+              <p class="top-visits">{{ item.visits }} visits</p>
+            </div>
+          </div>
+        </div>
+
+        <button class="top-list-ok" @click="showTopListModal = false">
+          Close
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -266,10 +303,17 @@ type QuickStat = {
   gender?: GenderData | null
 }
 
+type TopListItem = {
+  name: string
+  visits: number
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 const loading = ref(false)
 const exportLogs = ref<ExportLogView[]>([])
 const showNoAttendanceModal = ref(false)
+const showTopListModal = ref(false)
+const selectedTopListType = ref<'college' | 'program' | null>(null)
 
 // Real-time Counters (Today)
 const totalLibraryVisits = ref(0) // Monthly Total
@@ -279,10 +323,8 @@ const outgoingCount = ref(0)
 const currentlyInsideCount = ref(0)
 const averageStayDurationText = ref('—')
 
-
 const totalEventVisits = ref(0)
 const totalVisitorVisits = ref(0)
-
 
 // Analytics (Monthly)
 const topPeakHour = ref<{ label: string; visits: number } | null>(null)
@@ -290,7 +332,8 @@ const topPeakDay = ref<{ day: string; visits: number } | null>(null)
 const topCollege = ref<{ name: string; visits: number } | null>(null)
 const topProgram = ref<{ name: string; visits: number } | null>(null)
 const topYearLevel = ref<{ name: string; visits: number } | null>(null)
-
+const topColleges = ref<TopListItem[]>([])
+const topPrograms = ref<TopListItem[]>([])
 
 const genderBreakdown = ref({
   library: { male: 0, female: 0 },
@@ -354,6 +397,17 @@ const formatHourLabel = (hour: number) => {
   return `${hour % 12 || 12}:00 ${suffix}`
 }
 
+const formatYearLevel = (year: string | number | null | undefined) => {
+  const value = String(year || '').trim().toLowerCase()
+
+  if (value === '1' || value === 'year 1' || value === 'first year') return 'First Year'
+  if (value === '2' || value === 'year 2' || value === 'second year') return 'Second Year'
+  if (value === '3' || value === 'year 3' || value === 'third year') return 'Third Year'
+  if (value === '4' || value === 'year 4' || value === 'fourth year') return 'Fourth Year'
+
+  return year ? String(year) : 'N/A'
+}
+
 const getDurationMinutes = (log: any) => {
   if (typeof log.duration_minutes === 'number' && log.duration_minutes > 0) return log.duration_minutes
   const timeIn = getDateObject(log.time_in)
@@ -366,15 +420,31 @@ const getDurationMinutes = (log: any) => {
 const normalizeStudent = (s: any): StudentInfo | null =>
   Array.isArray(s) ? s[0] || null : s || null
 
+const getTopFive = (map: Record<string, number>) =>
+  Object.entries(map)
+    .map(([name, visits]) => ({ name, visits }))
+    .sort((a, b) => b.visits - a.visits)
+    .slice(0, 5)
 
+const handleQuickStatClick = (label: string) => {
+  if (label === 'Top College') {
+    selectedTopListType.value = 'college'
+    showTopListModal.value = true
+  }
+
+  if (label === 'Top Program') {
+    selectedTopListType.value = 'program'
+    showTopListModal.value = true
+  }
+}
 
 interface AttendanceExportRow {
   Type: string;
   Name: string;
   Gender: string;
   'Year / Org': string;
-  'College / Purpose': string;
-  'Program / Info': string;
+  'College / Office / Purpose': string;
+  'Program / Designation / Info': string;
   'Time In': string;
   Status: string;
 }
@@ -430,10 +500,10 @@ const exportAllCurrentVisitors = async () => {
         'Name': s ? `${s.last_name.toUpperCase()}, ${s.first_name}` : 'Unknown',
         'Gender': s?.gender || 'N/A',
         'Year / Org': s?.year_level || 'N/A',
-        'College / Purpose': s?.college || 'N/A',
-        'Program / Info': s?.program || 'N/A',
+        'College / Office / Purpose': s?.college || 'N/A',
+        'Program / Designation / Info': s?.program || 'N/A',
         'Time In': item.time_in ? new Date(item.time_in).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—',
-        'Status': 'STILL INSIDE'
+        'Status': 'ACTIVE'
       });
     });
 
@@ -444,8 +514,8 @@ const exportAllCurrentVisitors = async () => {
         'Name': v.full_name?.toUpperCase() || 'Unknown',
         'Gender': 'N/A',
         'Year / Org': v.institution || 'N/A',
-        'College / Purpose': v.contact || 'N/A',
-        'Program / Info': 'External',
+        'College / Office / Purpose': v.contact || 'N/A',
+        'Program / Designation / Info': 'External',
         'Time In': v.time_in ? new Date(v.time_in).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—',
         'Status': 'STILL INSIDE' 
       });
@@ -501,7 +571,6 @@ const fetchLiveCountsOptimized = async () => {
     supabase.from('attendance_logs_visitors').select('id', { count: 'exact', head: true }).not('time_out', 'is', null).gte('time_in', start).lte('time_in', end),
   ])
   
-
   if (stats && stats.length > 0) {
     const stat = stats[0]
     totalLibraryVisits.value = stat.total_library || 0
@@ -522,11 +591,6 @@ const fetchLiveCountsOptimized = async () => {
   currentlyInsideCount.value = (logInside.count || 0) + (visInside.count || 0)
   outgoingCount.value = (logOutgoing.count || 0) + (visOutgoing.count || 0)
 }
-
-
-
-
-
 
 const fetchAnalyticsOptimized = async () => {
   const runId = ++analyticsRunId
@@ -607,6 +671,9 @@ const fetchAnalyticsOptimized = async () => {
       topProgram.value = topOf(programMap, 'name')
       topYearLevel.value = topOf(yearLevelMap, 'name')
 
+      topColleges.value = getTopFive(collegeMap)
+      topPrograms.value = getTopFive(programMap)
+
       if (rows.length < batchSize) break
       from += batchSize
       await new Promise(r => setTimeout(r, 0))
@@ -679,10 +746,22 @@ const flowMax = computed(() => Math.max(visitorsToday.value, outgoing.value, 1))
 const incomingBarWidth = computed(() => `${(visitorsToday.value / flowMax.value) * 100}%`)
 const outgoingBarWidth = computed(() => `${(outgoing.value / flowMax.value) * 100}%`)
 
+const topListTitle = computed(() => {
+  if (selectedTopListType.value === 'college') return 'Top 5 Colleges'
+  if (selectedTopListType.value === 'program') return 'Top 5 Programs'
+  return 'Top 5'
+})
+
+const selectedTopList = computed(() => {
+  if (selectedTopListType.value === 'college') return topColleges.value
+  if (selectedTopListType.value === 'program') return topPrograms.value
+  return []
+})
+
 const quickStats = computed(() => [
   {
     val: totalLibraryVisits.value,
-    label: "Library Attendance",
+    label: "Attendance Progress",
     delta: 'This Month',
     up: true,
     gender: genderBreakdown.value.library,
@@ -711,12 +790,13 @@ const quickStats = computed(() => [
     up: true,
     gender: genderBreakdown.value.overall,
     icon: '📊'
-  },  { val: topPeakHour.value?.label || 'N/A', label: 'Peak Hour', delta: topPeakHour.value ? `${topPeakHour.value.visits} vists` : '—', up: true, icon: '⏰' },
+  },
+  { val: topPeakHour.value?.label || 'N/A', label: 'Peak Hour', delta: topPeakHour.value ? `${topPeakHour.value.visits} visits` : '—', up: true, icon: '⏰' },
   { val: topPeakDay.value?.day || 'N/A', label: 'Peak Day', delta: topPeakDay.value ? `${topPeakDay.value.visits} visits` : '—', up: true, icon: '📅' },
   { val: averageStayDurationText.value, label: 'Avg. Stay', delta: 'Per Session', up: true, icon: '⏳' },
   { val: topCollege.value?.name || 'N/A', label: 'Top College', delta: 'Monthly', up: true, icon: '🎓' },
   { val: topProgram.value?.name || 'N/A', label: 'Top Program', delta: 'Monthly', up: true, icon: '📚' },
-  { val: topYearLevel.value ? `Year ${topYearLevel.value.name}` : 'N/A', label: 'Top Year Level', delta: 'Monthly', up: true, icon: '⭐' },
+  { val: topYearLevel.value ? formatYearLevel(topYearLevel.value.name) : 'N/A', label: 'Top Year Level', delta: 'Monthly', up: true, icon: '⭐' },
 ])
 
 const handleTabChange = (n: string) => console.log(n)
@@ -880,6 +960,129 @@ const handleTabChange = (n: string) => console.log(n)
 
 .modal-box button:hover {
   background: #1f2937;
+}
+
+.top-list-modal-box {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.24);
+  animation: popIn 0.2s ease-in-out;
+  overflow: hidden;
+}
+
+.top-list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.top-list-eyebrow {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #c8930a;
+  margin: 0 0 4px;
+}
+
+.top-list-header h2 {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #0d2b0f;
+  margin: 0;
+}
+
+.top-list-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(13, 43, 15, 0.08);
+  color: #0d2b0f;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.top-list-close:hover {
+  background: rgba(13, 43, 15, 0.14);
+}
+
+.top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.top-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(13, 43, 15, 0.04);
+  border: 1px solid rgba(13, 43, 15, 0.07);
+  border-radius: 14px;
+}
+
+.top-rank {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #0d2b0f;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.top-info {
+  min-width: 0;
+}
+
+.top-name {
+  margin: 0 0 2px;
+  color: #0d2b0f;
+  font-weight: 800;
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+
+.top-visits {
+  margin: 0;
+  color: rgba(13, 43, 15, 0.48);
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+.top-list-empty {
+  text-align: center;
+  padding: 22px 12px;
+  color: rgba(13, 43, 15, 0.5);
+  font-weight: 700;
+}
+
+.top-list-ok {
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
+  background: #0d2b0f;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.top-list-ok:hover {
+  background: #1b5e20;
 }
 
 /* Animations */
@@ -1110,12 +1313,22 @@ const handleTabChange = (n: string) => console.log(n)
   animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   transition:
     transform 0.2s,
-    box-shadow 0.2s;
+    box-shadow 0.2s,
+    border-color 0.2s;
 }
 
 .qstat:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(13, 43, 15, 0.09);
+}
+
+.qstat-clickable {
+  cursor: pointer;
+}
+
+.qstat-clickable:hover {
+  border-color: rgba(249, 168, 37, 0.45);
+  box-shadow: 0 10px 28px rgba(249, 168, 37, 0.18);
 }
 
 .qstat-icon {

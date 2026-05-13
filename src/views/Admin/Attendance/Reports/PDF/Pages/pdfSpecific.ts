@@ -202,8 +202,11 @@ export async function generateSpecificPdf(
       labels: top10.map(([, v]) => v.name.split(' ').pop() ?? v.name),
       datasets: [{ label: 'Visits', data: top10.map(([, v]) => v.visits) }],
       yLabel: 'Visit Count',
+      width: 600,
+      height: 280,
     })
-    session.embedChart(chart1, startY1)
+    session.embedChart(chart1, startY1, 95)
+    session.addNotesLabel(startY1 + 100)
 
     // ── Page 2: Table ─────────────────────────────────────────────────────────
     session.newPage()
@@ -264,8 +267,11 @@ export async function generateSpecificPdf(
       labels,
       datasets: [{ label: 'Visits', data: counts, color: '#1b5e20', fill: true }],
       yLabel: 'Visit Count',
+      width: 600,
+      height: 280,
     })
-    session.embedChart(chart1, startY1)
+    session.embedChart(chart1, startY1, 95)
+    session.addNotesLabel(startY1 + 100)
 
     // ── Page 2: Summary Table ─────────────────────────────────────────────────
     session.newPage()
@@ -367,8 +373,11 @@ export async function generateSpecificPdf(
       labels: dateLabels,
       datasets: [{ label: 'Avg Duration (min)', data: avgByDate, color: '#388e3c' }],
       yLabel: 'Minutes',
+      width: 600,
+      height: 280,
     })
-    session.embedChart(chart1, startY1)
+    session.embedChart(chart1, startY1, 95)
+    session.addNotesLabel(startY1 + 100)
 
     // ── Page 2: Duration Distribution ────────────────────────────────────────
     session.newPage()
@@ -380,8 +389,11 @@ export async function generateSpecificPdf(
       labels: BUCKETS,
       datasets: [{ label: 'Visit Count', data: bucketCounts, color: '#2e7d32' }],
       yLabel: 'Number of Visits',
+      width: 600,
+      height: 280,
     })
-    session.embedChart(chart2, startY2)
+    session.embedChart(chart2, startY2, 95)
+    session.addNotesLabel(startY2 + 100)
 
     // ── Page 3: Statistics Table ──────────────────────────────────────────────
     session.newPage()
@@ -465,8 +477,11 @@ export async function generateSpecificPdf(
       labels: top15.map((e) => (e.title.length > 22 ? e.title.slice(0, 20) + '…' : e.title)),
       datasets: [{ label: 'Attendees', data: top15.map((e) => e.count) }],
       yLabel: 'Attendee Count',
+      width: 600,
+      height: 280,
     })
-    session.embedChart(chart1, startY1)
+    session.embedChart(chart1, startY1, 95)
+    session.addNotesLabel(startY1 + 100)
 
     // ── Page 2: Event Details Table ───────────────────────────────────────────
     session.newPage()

@@ -103,6 +103,17 @@ export class PdfSession {
   }
 
   /**
+   * Adds a "Notes:" label for user annotation space below a chart.
+   * @param y Y coordinate where to place the label
+   */
+  addNotesLabel(y: number): void {
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setFontSize(8)
+    this.doc.setTextColor(100, 100, 100)
+    this.doc.text('Notes:', 14, y)
+  }
+
+  /**
    * Renders a styled autoTable.
    * Uses dark-green header, alternating row fills, gold footer row.
    */

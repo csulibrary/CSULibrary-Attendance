@@ -41,9 +41,9 @@
         </button>
 
         <!-- Right: Timestamp -->
-        <h1 style="margin: 0; font-weight: 800">
+        <!-- <h1 style="margin: 0; font-weight: 800">
           Last Import Time: <span style="color: #f9a825">{{ lastImportTime }}</span>
-        </h1> 
+        </h1>  -->
       </div>
 
       <!-- STEPPER -->

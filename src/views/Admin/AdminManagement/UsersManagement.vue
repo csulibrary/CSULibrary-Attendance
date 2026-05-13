@@ -162,13 +162,13 @@ const roleButtons = [
     desc: 'Create and edit system roles',
     icon: iconShield,
   },
-  {
-    color: 'gold',
-    route: '/admin/management/permission',
-    title: 'Set Permissions',
-    desc: 'Define granular access rights',
-    icon: iconLock,
-  },
+  // {
+  //   color: 'gold',
+  //   route: '/admin/management/permission',
+  //   title: 'Set Permissions',
+  //   desc: 'Define granular access rights',
+  //   icon: iconLock,
+  // },
 ]
 
 const settingsTiles = [

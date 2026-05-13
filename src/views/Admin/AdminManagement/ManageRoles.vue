@@ -168,7 +168,7 @@ import Sidebar from '@/components/Sidebar.vue'
 import { userService, type User } from '@/services/userService'
 
 const users         = ref<User[]>([])
-const availableRoles = ref(['admin', 'staff', 'user', 'guest'])
+const availableRoles = ref(['admin', 'super_admin', 'guest', 'staff'])
 const newRoleName   = ref('')
 const updatingId    = ref<string | null>(null)
 const successId     = ref<string | null>(null)

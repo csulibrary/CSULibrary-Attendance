@@ -241,15 +241,16 @@ export async function generateCollegePdf(
         {
           label: 'Visits',
           data: dataPage1,
-          // Pass color array via the first dataset; renderBarChart passes it
-          // directly to Chart.js backgroundColor which accepts string[].
           color: barColors as unknown as string,
         },
       ],
       yLabel: 'Number of Visits',
       xLabel: 'Program',
+      width: 600,
+      height: 280,
     })
-    session.embedChart(chart, startY)
+    session.embedChart(chart, startY, 95)
+    session.addNotesLabel(startY + 100)
   }
 
   // ── Page 2 ─────────────────────────────────────────────────────────────────
@@ -280,8 +281,11 @@ export async function generateCollegePdf(
       ],
       yLabel: 'Number of Visits',
       xLabel: 'Year Level',
+      width: 600,
+      height: 280,
     })
-    session.embedChart(chart, startY)
+    session.embedChart(chart, startY, 95)
+    session.addNotesLabel(startY + 100)
   }
 
   // ── Page 3 ─────────────────────────────────────────────────────────────────
@@ -314,8 +318,11 @@ export async function generateCollegePdf(
       datasets: lineDatasets,
       yLabel: 'Visits',
       xLabel: 'Hour of Day',
+      width: 600,
+      height: 280,
     })
-    session.embedChart(chart, startY)
+    session.embedChart(chart, startY, 95)
+    session.addNotesLabel(startY + 100)
   }
 
   // ── Page 4 ─────────────────────────────────────────────────────────────────
@@ -347,8 +354,11 @@ export async function generateCollegePdf(
       datasets: yearLevelDatasets,
       yLabel: 'Visits',
       xLabel: 'Hour of Day',
+      width: 600,
+      height: 280,
     })
-    session.embedChart(chart, startY)
+    session.embedChart(chart, startY, 95)
+    session.addNotesLabel(startY + 100)
   }
 
   // ── Page 5 ─────────────────────────────────────────────────────────────────

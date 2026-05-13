@@ -191,9 +191,11 @@ export async function generateAllPdf(supabase: SupabaseClient, filter: DateFilte
       labels: period.rows.map((r) => r.date),
       datasets: [{ label: 'Visits', data: period.rows.map((r) => r.count) }],
       yLabel: 'Number of Visits',
+      width: 600,
+      height: 280,
     })
 
-    const bottomY = session.embedChart(base64, startY)
+    const chartBottomY = session.embedChart(base64, startY, 95)
 
     // Legend note below chart
     session.doc.setFontSize(6.5)
@@ -201,9 +203,12 @@ export async function generateAllPdf(supabase: SupabaseClient, filter: DateFilte
     session.doc.text(
       '■  Each bar represents one college within the selected period.',
       14,
-      bottomY + 5,
+      chartBottomY + 5,
     )
     session.doc.setTextColor(0, 0, 0)
+
+    // Notes space
+    session.addNotesLabel(chartBottomY + 13)
   }
 
   // ── 6. Summary table page ──────────────────────────────────────────────────
@@ -218,7 +223,7 @@ export async function generateAllPdf(supabase: SupabaseClient, filter: DateFilte
 
   session.drawTable({
     startY: tableStartY,
-    head: [['Period', 'Date', 'Visit Count']],
+    head: [['Period', 'College', 'Visit Count']],
     body: tableBody,
     foot: [['', 'GRAND TOTAL', grandTotal.toLocaleString()]],
     colWidths: { 2: 30 },

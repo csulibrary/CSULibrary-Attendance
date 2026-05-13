@@ -36,7 +36,7 @@ const emit = defineEmits(['close', 'confirm'])
           <div class="divider" />
 
           <div class="actions">
-            <button class="btn-secondary" @click="emit('close')">Go Back</button>
+            <button class="btn-secondary" @click="emit('confirm')">Go Back</button>
             <button class="btn-primary" @click="emit('confirm')">Understood</button>
           </div>
         </div>

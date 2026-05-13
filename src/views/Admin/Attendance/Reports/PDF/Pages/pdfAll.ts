@@ -51,17 +51,23 @@ function monthRange(month: number, year: number) {
   return { gte: start.toISOString(), lte: end.toISOString() }
 }
 
-/** Groups attendance rows by college, returns sorted [{date, count}]. */
+/** Groups attendance rows by college, returns sorted [{date, count, female, male}]. */
 function groupByCollege(
-  rows: { time_in: string; students?: { college: string | null } | null }[],
-): { date: string; count: number }[] {
-  const map: Record<string, number> = {}
+  rows: { time_in: string; students?: { college: string | null; gender: string | null } | null }[],
+): { date: string; count: number; female: number; male: number }[] {
+  const map: Record<string, { count: number; female: number; male: number }> = {}
   for (const r of rows) {
     const college = r.students?.college ?? 'Unknown'
-    map[college] = (map[college] ?? 0) + 1
+    const gender = r.students?.gender?.toLowerCase()
+    if (!map[college]) {
+      map[college] = { count: 0, female: 0, male: 0 }
+    }
+    map[college].count++
+    if (gender === 'female') map[college].female++
+    else if (gender === 'male') map[college].male++
   }
   return Object.entries(map)
-    .map(([college, count]) => ({ date: college, count }))
+    .map(([college, data]) => ({ date: college, ...data }))
     .sort((a, b) => b.count - a.count)
 }
 
@@ -90,11 +96,11 @@ async function fetchMonth(
   supabase: SupabaseClient,
   month:    number,
   year:     number,
-): Promise<{ time_in: string; students?: { college: string | null } | null }[]> {
+): Promise<{ time_in: string; students?: { college: string | null; gender: string | null } | null }[]> {
   const { gte, lte } = monthRange(month, year)
   const query = supabase
     .from('attendance_logs')
-    .select('time_in, students!inner(college)')
+    .select('time_in, students!inner(college, gender)')
     .gte('time_in', gte)
     .lte('time_in', lte)
     .order('time_in', { ascending: true })
@@ -110,10 +116,10 @@ async function fetchMonth(
 async function fetchRange(
   supabase: SupabaseClient,
   filter:   DateFilter,
-): Promise<{ time_in: string; students?: { college: string | null } | null }[]> {
+): Promise<{ time_in: string; students?: { college: string | null; gender: string | null } | null }[]> {
   let query = supabase
     .from('attendance_logs')
-    .select('time_in, students!inner(college)')
+    .select('time_in, students!inner(college, gender)')
     .order('time_in', { ascending: true })
 
   if (filter.type === 'day' && filter.day) {
@@ -143,7 +149,7 @@ export async function generateAllPdf(supabase: SupabaseClient, filter: DateFilte
   // ── 1. Collect data per period ─────────────────────────────────────────────
   interface PeriodData {
     label: string
-    rows: { date: string; count: number }[]
+    rows: { date: string; count: number; female: number; male: number }[]
   }
 
   const periods: PeriodData[] = []
@@ -219,14 +225,19 @@ export async function generateAllPdf(supabase: SupabaseClient, filter: DateFilte
     `Grand total: ${grandTotal.toLocaleString()} visits across ${periods.length} period(s)`,
   )
 
-  const tableBody = periods.flatMap((p) => p.rows.map((r) => [p.label, r.date, r.count.toString()]))
+  const tableBody = periods.flatMap((p) =>
+    p.rows.map((r) => [p.label, r.date, r.count.toString(), r.female.toString(), r.male.toString()]),
+  )
+
+  const totalFemale = periods.reduce((sum, p) => sum + p.rows.reduce((s, r) => s + r.female, 0), 0)
+  const totalMale = periods.reduce((sum, p) => sum + p.rows.reduce((s, r) => s + r.male, 0), 0)
 
   session.drawTable({
     startY: tableStartY,
-    head: [['Period', 'College', 'Visit Count']],
+    head: [['Period', 'College', 'Visit Count', 'Female', 'Male']],
     body: tableBody,
-    foot: [['', 'GRAND TOTAL', grandTotal.toLocaleString()]],
-    colWidths: { 2: 30 },
+    foot: [['', 'GRAND TOTAL', grandTotal.toLocaleString(), totalFemale.toLocaleString(), totalMale.toLocaleString()]],
+    colWidths: { 2: 28, 3: 22, 4: 22 },
   })
 
   return session.toBlob()

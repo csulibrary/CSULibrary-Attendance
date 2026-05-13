@@ -19,7 +19,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { PdfSession } from '../pdfGenerator'
 import { renderBarChart } from '../Charts/renderBarChart'
-import { renderLineChart } from '../Charts/renderLineChart'
+import { renderLineChart, LINE_COLORS } from '../Charts/renderLineChart'
 import { renderPieChart } from '../Charts/renderPieChart'
 import type { DateFilter } from './pdfAll'
 
@@ -343,9 +343,9 @@ export async function generateCollegePdf(
       const yearNum = Number(yl.split(' ')[1])
       const ylRows = rows.filter((r) => r.students?.year_level === yearNum)
       return {
-        label: yl,                                         // e.g. "Year 1"
+        label: yl,
         data: countByHour(ylRows),
-        color: GREEN_PALETTE[i % GREEN_PALETTE.length] as string,
+        color: LINE_COLORS[i % LINE_COLORS.length] as string,
       }
     })
 

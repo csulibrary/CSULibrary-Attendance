@@ -5,6 +5,7 @@ import Dashboard from '@/views/Admin/Dashboard.vue'
 import Login from '@/views/Admin/Login.vue'
 import Signin from '@/views/Admin/Signin.vue'
 import EventInput from '@/views/Admin/Announcements/EventInput.vue'
+import EventDisplay from '@/views/Admin/Announcements/EventDisplay.vue';
 import AttendanceOverview from '@/views/Admin/AttendanceManagement/AttendanceOverview.vue'
 import AttendanceLogs from '@/views/Admin/AttendanceManagement/AttendanceLogs.vue'
 import ImportRecord from '@/views/Admin/AttendanceManagement/ImportRecord.vue'
@@ -30,7 +31,8 @@ const router = createRouter({
 
     //sidebars
     { path: '/admin', name: 'admin', component: Dashboard,meta: { requiresAuth: true }  },
-    { path: '/admin/event', name: 'event', component: EventInput, meta: { requiresAuth: true } },
+    { path: '/admin/event/add', name: 'event', component: EventInput, meta: { requiresAuth: true } },
+    { path: '/admin/event', name: 'event-display', component: EventDisplay, meta: { requiresAuth: true } },
     { path: '/admin/attendance', name: 'attendance', component: AttendanceOverview, meta: { requiresAuth: true } },
     { path: '/admin/attendance/logs', name: 'attendance-logs', component: AttendanceLogs, meta: { requiresAuth: true } },
     { path: '/admin/attendance/import', name: 'attendance-import', component: ImportRecord, meta: {requiresAdmin: true, requiresAuth: true } },

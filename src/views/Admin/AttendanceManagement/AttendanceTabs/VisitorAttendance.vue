@@ -33,29 +33,125 @@
           </p>
         </div>
 
-        <section class="rounded-xl bg-white p-6 shadow-sm">
-          <div class="mb-5 flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
+        <!-- Logs take the primary column and render first; filters sit in a narrower side panel -->
+        <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+          <section class="order-1 rounded-xl bg-white p-6 shadow-sm">
+            <div class="mb-5 flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
+                <h2 class="text-lg font-bold text-slate-900">Visitor Logs</h2>
+              </div>
+              <span
+                v-if="isFiltered"
+                class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+              >
+                Filtered
+              </span>
+            </div>
+
+            <div
+              v-if="loading"
+              class="rounded-xl border border-slate-200 px-4 py-10 text-center text-sm text-slate-500"
+            >
+              Loading visitor records...
+            </div>
+
+            <div
+              v-else-if="errorMessage"
+              class="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700"
+            >
+              {{ errorMessage }}
+            </div>
+
+            <div v-else class="overflow-hidden rounded-xl border border-slate-200">
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                  <thead
+                    class="bg-slate-100 text-xs font-bold uppercase tracking-wide text-slate-600"
+                  >
+                    <tr>
+                      <th class="px-4 py-3">Name</th>
+                      <th class="px-4 py-3">Contact</th>
+                      <th class="px-4 py-3">Institution</th>
+                      <th class="px-4 py-3">Designation</th>
+                      <th class="px-4 py-3">Location</th>
+                      <th class="px-4 py-3">Gender</th>
+                      <th class="px-4 py-3">Date</th>
+                      <th class="px-4 py-3">Time In</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 bg-white text-slate-700">
+                    <tr v-if="visitorLogs.length === 0">
+                      <td colspan="8" class="px-4 py-10 text-center text-sm text-slate-500">
+                        No visitor records to display.
+                      </td>
+                    </tr>
+                    <tr v-for="log in visitorLogs" :key="log.id">
+                      <td class="px-4 py-3 font-medium text-slate-900">
+                        {{ getVisitorName(log) }}
+                      </td>
+                      <td class="px-4 py-3">
+                        {{ log.contact || '--' }}
+                      </td>
+                      <td class="px-4 py-3 text-xs">
+                        {{ log.institution || '--' }}
+                      </td>
+                      <td class="px-4 py-3 text-xs">
+                        {{ log.designation || '--' }}
+                      </td>
+                      <td class="px-4 py-3 text-xs">
+                        {{ getLocation(log) }}
+                      </td>
+                      <td class="px-4 py-3 text-xs">
+                        {{ log.gender || '--' }}
+                      </td>
+                      <td class="px-4 py-3">
+                        {{ formatDisplayDate(log.time_in) }}
+                      </td>
+                      <td class="px-4 py-3">
+                        {{ formatDisplayTime(log.time_in) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div
+              class="mt-5 flex flex-col gap-4 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <p class="text-sm font-medium text-slate-700">
+                Total number of library visit:
+                <span class="font-bold text-slate-900">{{ visitorLogs.length }}</span>
+              </p>
+
+              <button
+                type="button"
+                @click="exportVisitorLogs"
+                class="inline-flex h-10 items-center justify-center rounded-lg bg-[#164d23] px-5 text-sm font-semibold text-white transition hover:bg-[#123d1b] lg:w-auto"
+              >
+                Export
+              </button>
+            </div>
+          </section>
+
+          <!-- Side filter panel -->
+          <aside class="order-2 rounded-xl bg-white p-5 shadow-sm lg:sticky lg:top-6">
+            <div class="mb-4 flex items-center gap-3">
               <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
-              <h1 class="text-lg font-bold text-slate-900">Visitor Filters</h1>
-            </div>
-          </div>
-
-          <div class="grid gap-6 lg:grid-cols-[160px_minmax(0,1fr)] lg:items-start">
-            <div class="pt-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Select Filter:
+              <h2 class="text-base font-bold text-slate-900">Filters</h2>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-3">
               <label
-                class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300"
+                class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 transition hover:border-slate-300"
                 :class="
                   selectedFilterMode === 'specific-date'
                     ? 'border-[#164d23] bg-white shadow-sm'
                     : ''
                 "
               >
-                <div class="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
                   <input
                     v-model="selectedFilterMode"
                     type="radio"
@@ -70,19 +166,19 @@
                   v-model="specificDate"
                   type="date"
                   :disabled="selectedFilterMode !== 'specific-date'"
-                  class="h-11 max-w-md rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-[#164d23] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                  class="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#164d23] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                 />
               </label>
 
               <label
-                class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300"
+                class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 transition hover:border-slate-300"
                 :class="
                   selectedFilterMode === 'specific-month'
                     ? 'border-[#164d23] bg-white shadow-sm'
                     : ''
                 "
               >
-                <div class="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
                   <input
                     v-model="selectedFilterMode"
                     type="radio"
@@ -93,44 +189,34 @@
                   <span>Specific Month</span>
                 </div>
 
-                <div class="flex flex-wrap items-end gap-3">
-                  <div class="grid gap-1">
-                    <select
-                      v-model="specificMonth"
-                      :disabled="selectedFilterMode !== 'specific-month'"
-                      class="h-11 min-w-40 rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-[#164d23] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                    >
-                      <option v-for="month in months" :key="month.value" :value="month.value">
-                        {{ month.label }}
-                      </option>
-                    </select>
-                    <span class="text-xs font-medium uppercase tracking-wide text-slate-500"
-                      >month</span
-                    >
-                  </div>
+                <div class="flex flex-col gap-2">
+                  <select
+                    v-model="specificMonth"
+                    :disabled="selectedFilterMode !== 'specific-month'"
+                    class="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#164d23] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    <option v-for="month in months" :key="month.value" :value="month.value">
+                      {{ month.label }}
+                    </option>
+                  </select>
 
-                  <div class="grid gap-1">
-                    <select
-                      v-model="specificYear"
-                      :disabled="selectedFilterMode !== 'specific-month'"
-                      class="h-11 min-w-28 rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-[#164d23] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                    >
-                      <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
-                    </select>
-                    <span class="text-xs font-medium uppercase tracking-wide text-slate-500"
-                      >year</span
-                    >
-                  </div>
+                  <select
+                    v-model="specificYear"
+                    :disabled="selectedFilterMode !== 'specific-month'"
+                    class="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#164d23] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
+                  </select>
                 </div>
               </label>
 
               <label
-                class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300"
+                class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 transition hover:border-slate-300"
                 :class="
                   selectedFilterMode === 'period' ? 'border-[#164d23] bg-white shadow-sm' : ''
                 "
               >
-                <div class="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
                   <input
                     v-model="selectedFilterMode"
                     type="radio"
@@ -141,142 +227,54 @@
                   <span>Period</span>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-col gap-2">
                   <input
                     v-model="periodStartDate"
                     type="date"
                     :disabled="selectedFilterMode !== 'period'"
-                    class="h-11 rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-[#164d23] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                    class="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#164d23] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                   />
-                  <span class="text-sm font-medium text-slate-500">to</span>
+                  <span class="text-center text-xs font-medium text-slate-500">to</span>
                   <input
                     v-model="periodEndDate"
                     type="date"
                     :disabled="selectedFilterMode !== 'period'"
-                    class="h-11 rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-[#164d23] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                    class="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#164d23] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                   />
                 </div>
               </label>
 
-              <div class="flex justify-end pt-1">
-                <button
-                  type="button"
-                  @click="loadVisitorLogs"
-                  class="inline-flex h-10 items-center justify-center rounded-lg bg-[#164d23] px-5 text-sm font-semibold text-white transition hover:bg-[#123d1b] lg:w-auto"
-                >
-                  Show
-                </button>
-              </div>
+              <label
+                class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 transition hover:border-slate-300"
+                :class="selectedFilterMode === 'all' ? 'border-[#164d23] bg-white shadow-sm' : ''"
+              >
+                <input
+                  v-model="selectedFilterMode"
+                  type="radio"
+                  name="visitor-filter-mode"
+                  value="all"
+                  class="h-4 w-4 accent-[#164d23]"
+                />
+                <span class="text-xs font-semibold text-slate-700">Show All Records</span>
+              </label>
             </div>
-          </div>
-        </section>
-
-        <section class="rounded-xl bg-white p-6 shadow-sm">
-          <div class="mb-5 flex items-center gap-3">
-            <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
-            <h2 class="text-lg font-bold text-slate-900">Visitor Logs</h2>
-          </div>
-
-          <div
-            v-if="loading"
-            class="rounded-xl border border-slate-200 px-4 py-10 text-center text-sm text-slate-500"
-          >
-            Loading visitor records...
-          </div>
-
-          <div
-            v-else-if="errorMessage"
-            class="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700"
-          >
-            {{ errorMessage }}
-          </div>
-
-          <div v-else class="overflow-hidden rounded-xl border border-slate-200">
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                <thead
-                  class="bg-slate-100 text-xs font-bold uppercase tracking-wide text-slate-600"
-                >
-                  <tr>
-                    <th class="px-4 py-3">Name</th>
-                    <th class="px-4 py-3">Cellphone</th>
-                    <th class="px-4 py-3">Email</th>
-                    <th class="px-4 py-3">School/Institution</th>
-                    <th class="px-4 py-3">Date</th>
-                    <th class="px-4 py-3">Time In</th>
-                    <th class="px-4 py-3">Time Out</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-200 bg-white text-slate-700">
-                  <tr v-if="visitorLogs.length === 0">
-                    <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">
-                      No visitor records to display.
-                    </td>
-                  </tr>
-                  <tr v-for="log in visitorLogs" :key="log.id">
-                    <td class="px-4 py-3 font-medium text-slate-900">
-                      {{ getVisitorName(log) }}
-                    </td>
-                    <td class="px-4 py-3">
-                      {{ log.contact_details || log.contact || log.cellphone || '--' }}
-                    </td>
-                    <td class="px-4 py-3 text-xs">
-                      {{ log.email || '--' }}
-                    </td>
-                    <td class="px-4 py-3 text-xs">
-                      {{ log.institution || log.company_institution || '--' }}
-                    </td>
-                    <td class="px-4 py-3">
-                      {{ formatDisplayDate(log.time_in) }}
-                    </td>
-                    <td class="px-4 py-3">
-                      {{ formatDisplayTime(log.time_in) }}
-                    </td>
-                    <td class="px-4 py-3">
-                      {{ log.time_out ? formatDisplayTime(log.time_out) : '(Optional)' }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div
-            class="mt-5 flex flex-col gap-4 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <p class="text-sm font-medium text-slate-700">
-              Total number of library visit:
-              <span class="font-bold text-slate-900">{{ visitorLogs.length }}</span>
-            </p>
-
-            <button
-              type="button"
-              @click="exportVisitorLogs"
-              class="inline-flex h-10 items-center justify-center rounded-lg bg-[#164d23] px-5 text-sm font-semibold text-white transition hover:bg-[#123d1b] lg:w-auto"
-            >
-              Export
-            </button>
-          </div>
-        </section>
+          </aside>
+        </div>
       </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import * as XLSX from 'xlsx'
 import Sidebar from '@/components/Sidebar.vue'
 import { supabase } from '@/lib/supabase'
 
-const filterModes = [
-  { label: 'Specific Date', value: 'specific-date' },
-  { label: 'Specific Month', value: 'specific-month' },
-  { label: 'Period', value: 'period' },
-] as const
-
-const selectedFilterMode = ref<(typeof filterModes)[number]['value']>('specific-date')
-const specificDate = ref('2026-04-13')
+const selectedFilterMode = ref<'specific-date' | 'specific-month' | 'period' | 'all'>(
+  'specific-date',
+)
+const specificDate = ref(new Date().toISOString().slice(0, 10))
 const specificMonth = ref(String(new Date().getMonth() + 1).padStart(2, '0'))
 const specificYear = ref(String(new Date().getFullYear()))
 const periodStartDate = ref('')
@@ -302,22 +300,19 @@ const years = computed(() => {
   return Array.from({ length: 6 }, (_, index) => String(currentYear - index))
 })
 
+const isFiltered = computed(() => selectedFilterMode.value !== 'all')
+
 type VisitorLog = {
   id: string
   time_in: string | null
-  time_out?: string | null
-  attendance_type?: string | null
-  visitor_name?: string | null
-  name?: string | null
   full_name?: string | null
-  company?: string | null
   institution?: string | null
-  company_institution?: string | null
-  contact_details?: string | null
   contact?: string | null
-  reason?: string | null
-  email?: string | null
-  cellphone?: string | null
+  gender?: string | null
+  honorific?: string | null
+  designation?: string | null
+  city?: string | null
+  province?: string | null
   [key: string]: unknown
 }
 
@@ -349,19 +344,39 @@ const formatDisplayTime = (value: string | null) => {
   })
 }
 
-const getVisitorName = (log: VisitorLog) => log.visitor_name || log.full_name || log.name || '--'
+const getVisitorName = (log: VisitorLog) => {
+  const name = log.full_name || '--'
+  return log.honorific ? `${log.honorific} ${name}` : name
+}
+
+const getLocation = (log: VisitorLog) => {
+  const parts = [log.city, log.province].filter(Boolean)
+  return parts.length ? parts.join(', ') : '--'
+}
 
 const exportVisitorLogs = () => {
-  const headers = ['Name', 'Cellphone', 'Email', 'School/Institution', 'Date', 'Time In', 'Time Out']
+  const headers = [
+    'Name',
+    'Contact',
+    'Institution',
+    'Designation',
+    'City',
+    'Province',
+    'Gender',
+    'Date',
+    'Time In',
+  ]
 
   const rows = visitorLogs.value.map((log) => [
     getVisitorName(log),
-    log.contact_details || log.contact || log.cellphone || '--',
-    log.email || '--',
-    log.institution || log.company_institution || '--',
+    log.contact || '--',
+    log.institution || '--',
+    log.designation || '--',
+    log.city || '--',
+    log.province || '--',
+    log.gender || '--',
     formatDisplayDate(log.time_in),
     formatDisplayTime(log.time_in),
-    log.time_out ? formatDisplayTime(log.time_out) : '(Optional)',
   ])
 
   const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows])
@@ -373,6 +388,10 @@ const exportVisitorLogs = () => {
 }
 
 const buildDateRange = () => {
+  if (selectedFilterMode.value === 'all') {
+    return null
+  }
+
   if (selectedFilterMode.value === 'specific-date' && specificDate.value) {
     return {
       start: `${specificDate.value}T00:00:00`,
@@ -431,6 +450,18 @@ const loadVisitorLogs = async () => {
     loading.value = false
   }
 }
+
+// Filters auto-apply: any change to mode or the relevant inputs reloads the logs.
+watch(
+  [selectedFilterMode, specificDate, specificMonth, specificYear, periodStartDate, periodEndDate],
+  () => {
+    // For "period" mode, wait until both dates are set before querying.
+    if (selectedFilterMode.value === 'period' && (!periodStartDate.value || !periodEndDate.value)) {
+      return
+    }
+    loadVisitorLogs()
+  },
+)
 
 onMounted(() => {
   loadVisitorLogs()

@@ -27,7 +27,7 @@
                 <span class="anim-shimmer"> {{ firstName || 'User' }} </span>.
               </h2>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
                 <div
                   v-for="(stat, i) in quickStats"
                   :key="stat.label"
@@ -115,7 +115,7 @@ const displayMonthly = ref<number | null>(0)
 const displayVisitors = ref<number | null>(0)
 const displayTimedOut = ref<number | null>(0)
 
-const CARD_COUNT = 4
+const CARD_COUNT = 3
 const cardRefs = reactive<any[]>(new Array(CARD_COUNT).fill(null))
 const cardStyles = reactive<string[]>(
   new Array(CARD_COUNT).fill('transform: perspective(800px) rotateX(0deg) rotateY(0deg) scale(1);'),
@@ -172,11 +172,13 @@ const quickStats = computed(() => [
     value: displayTimedOut.value,
     icon: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`,
   },
+  /*
   {
     label: 'Top Department',
     value: topDepartment.value,
     icon: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
   },
+  */
   {
     label: 'Monthly Attendance',
     value: displayMonthly.value,
@@ -258,7 +260,7 @@ async function fetchFastDashboardStats() {
     // 1. Monthly Attendance 
     supabase
       .from('attendance_logs')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('attendance_type', 'library')
       .gte('time_in', monthRange.start)
       .lte('time_in', monthRange.end),
@@ -266,7 +268,7 @@ async function fetchFastDashboardStats() {
     // 2. Active Visitors Today 
     supabase
       .from('attendance_logs')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('attendance_type', 'library')
       .is('time_out', null)
       .gte('time_in', todayRange.start)
@@ -275,7 +277,7 @@ async function fetchFastDashboardStats() {
     // 3. Timed Out Today 
     supabase
       .from('attendance_logs')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('attendance_type', 'library')
       .not('time_out', 'is', null)
       .gte('time_in', todayRange.start)
@@ -345,7 +347,7 @@ const scheduleRealtimeRefresh = () => {
   if (refreshTimer) clearTimeout(refreshTimer)
   refreshTimer = setTimeout(async () => {
     await fetchFastDashboardStats()
-    fetchTopDepartmentInBackground()
+    // fetchTopDepartmentInBackground() is disabled while its card is hidden.
   }, 400)
 }
 
@@ -354,10 +356,10 @@ const scheduleRealtimeRefresh = () => {
 onMounted(async () => {
   localStorage.removeItem('dashboard_stats')
 
-  // Kick off stats and top-department in parallel — don't await the background one
+  // Load dashboard stats. Top Department is temporarily disabled to avoid its
+  // all-history attendance scan while the card is hidden.
   const [statsResult] = await Promise.allSettled([
     fetchFastDashboardStats(),
-    fetchTopDepartmentInBackground(),
   ])
 
   if (statsResult.status === 'rejected') console.error('Dashboard stats failed:', statsResult.reason)

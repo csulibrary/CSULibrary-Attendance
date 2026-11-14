@@ -549,7 +549,7 @@ const fetchLiveCountsOptimized = async () => {
   // 1.stats  View (Monthly)
   const { data: stats, error: statsErr } = await supabase
     .from('dashboard_stats')
-    .select('*')
+    .select('total_library, total_event, library_male, library_female, event_male, event_female')
     .limit(1)
 
   // 2. Visitors count 
@@ -571,8 +571,8 @@ const fetchLiveCountsOptimized = async () => {
     supabase.from('attendance_logs_visitors').select('id', { count: 'exact', head: true }).not('time_out', 'is', null).gte('time_in', start).lte('time_in', end),
   ])
   
-  if (stats && stats.length > 0) {
-    const stat = stats[0]
+  const stat = stats?.[0]
+  if (stat) {
     totalLibraryVisits.value = stat.total_library || 0
     totalEventVisits.value = stat.total_event || 0
     totalVisitorVisits.value = visitorCount || 0
@@ -686,7 +686,7 @@ const fetchAnalyticsOptimized = async () => {
 const fetchExportLogs = async () => {
   const { data } = await supabase
     .from('export_batches')
-    .select('*')
+    .select('id, uploaded_at, file_type, exported_by_name, status, row_count, file_name')
     .order('uploaded_at', { ascending: false })
     .limit(5)
 

@@ -428,7 +428,9 @@ const loadVisitorLogs = async () => {
   try {
     let query = supabase
       .from('attendance_logs_visitors')
-      .select('*')
+      .select(
+        'id, time_in, full_name, honorific, contact, institution, designation, city, province, gender',
+      )
       .order('time_in', { ascending: false })
 
     const range = buildDateRange()

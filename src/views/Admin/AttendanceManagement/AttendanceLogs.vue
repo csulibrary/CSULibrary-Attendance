@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue"
+import { ref, computed, watch } from "vue"
 import Sidebar from "@/components/Sidebar.vue"
 import { getAttendanceLogs } from "@/services/attendanceService"
 import { supabase } from "@/lib/supabase"
@@ -52,6 +52,8 @@ const collegesMasterList = ref<CollegeOption[]>([])
 const totalRecords = ref(0)
 const loading = ref(false)
 const filterOptionsLoading = ref(false)
+const filterOptionsLoaded = ref(false)
+const hasQueried = ref(false)
 const exporting = ref(false)
 const errorMessage = ref("")
 
@@ -65,6 +67,7 @@ const selectedDate = ref("")
 
 const currentPage = ref(1)
 const itemsPerPage = 10
+let filterOptionsRequest: Promise<void> | null = null
 
 const normalizeText = (value: unknown) => {
   return String(value ?? "").trim()
@@ -199,23 +202,39 @@ const fetchMasterFilterTables = async () => {
 }
 
 const fetchFilterOptions = async () => {
+  if (filterOptionsLoaded.value) return
+  if (filterOptionsRequest) return filterOptionsRequest
+
   filterOptionsLoading.value = true
 
-  try {
-    await Promise.all([
-      fetchStudentsForFilterOptions(),
-      fetchMasterFilterTables(),
-    ])
-  } catch (error) {
-    console.error("Failed to fetch filter options:", error)
-  } finally {
-    filterOptionsLoading.value = false
-  }
+  filterOptionsRequest = (async () => {
+    try {
+      await Promise.all([
+        fetchStudentsForFilterOptions(),
+        fetchMasterFilterTables(),
+      ])
+      filterOptionsLoaded.value = true
+    } catch (error) {
+      console.error("Failed to fetch filter options:", error)
+    } finally {
+      filterOptionsLoading.value = false
+      filterOptionsRequest = null
+    }
+  })()
+
+  return filterOptionsRequest
+}
+
+const loadFilterOptionsOnDemand = () => {
+  if (!filterOptionsLoaded.value) void fetchFilterOptions()
 }
 
 const fetchAttendanceLogs = async () => {
+  if (loading.value) return
+
   loading.value = true
   errorMessage.value = ""
+  hasQueried.value = true
 
   try {
     const result = await getAttendanceLogs({
@@ -238,11 +257,6 @@ const fetchAttendanceLogs = async () => {
     loading.value = false
   }
 }
-
-onMounted(async () => {
-  await fetchFilterOptions()
-  await fetchAttendanceLogs()
-})
 
 const formatDateTime = (value: string | null) => {
   if (!value) return "--"
@@ -362,24 +376,17 @@ const goToPreviousPage = () => {
   }
 }
 
-watch(
-  [
-    search,
-    selectedProgram,
-    selectedCollege,
-    selectedYearLevel,
-    selectedAttendanceType,
-    selectedStatus,
-    selectedDate,
-  ],
-  () => {
+const applyFilters = () => {
+  if (currentPage.value !== 1) {
     currentPage.value = 1
-    fetchAttendanceLogs()
+    return
   }
-)
+
+  void fetchAttendanceLogs()
+}
 
 watch(currentPage, () => {
-  fetchAttendanceLogs()
+  if (hasQueried.value) void fetchAttendanceLogs()
 })
 
 const clearFilters = () => {
@@ -390,7 +397,7 @@ const clearFilters = () => {
   selectedAttendanceType.value = ""
   selectedStatus.value = ""
   selectedDate.value = ""
-  currentPage.value = 1
+  applyFilters()
 }
 
 const saveExportHistory = async (fileName: string, fileType: string, rowCount: number) => {
@@ -569,7 +576,11 @@ const exportToCSV = async () => {
           <div class="toolbar">
             <div class="toolbarLeft">
               <div class="stackCol">
-                <select v-model="selectedProgram" class="control selectControl">
+                <select
+                  v-model="selectedProgram"
+                  class="control selectControl"
+                  @focus="loadFilterOptionsOnDemand"
+                >
                   <option value="">All Programs</option>
                   <option
                     v-for="program in uniquePrograms"
@@ -588,7 +599,11 @@ const exportToCSV = async () => {
               </div>
 
               <div class="stackCol">
-                <select v-model="selectedCollege" class="control selectControl">
+                <select
+                  v-model="selectedCollege"
+                  class="control selectControl"
+                  @focus="loadFilterOptionsOnDemand"
+                >
                   <option value="">All Colleges</option>
                   <option
                     v-for="college in uniqueColleges"
@@ -662,7 +677,15 @@ const exportToCSV = async () => {
                 type="text"
                 placeholder="Search ID number or student name..."
                 class="control searchControl"
+                @keyup.enter="applyFilters"
               />
+              <button
+                @click="applyFilters"
+                class="exportBtn"
+                :disabled="loading"
+              >
+                {{ loading ? "Loading..." : "Apply Filters" }}
+              </button>
             </div>
           </div>
 
@@ -696,9 +719,13 @@ const exportToCSV = async () => {
 
                   <tr v-else-if="paginatedLogs.length === 0">
                     <td colspan="9" class="empty">
-                      No attendance records found.
+                      {{ hasQueried ? emptyMessage : "Records have not been loaded." }}
                       <div class="emptyHint">
-                        Try changing your search or filter selection.
+                        {{
+                          hasQueried
+                            ? emptyHint
+                            : "Choose any filters you need, then click Apply Filters to load attendance records."
+                        }}
                       </div>
                     </td>
                   </tr>

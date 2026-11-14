@@ -26,7 +26,13 @@ export const getAttendanceLogs = async ({
     .from("attendance_logs")
     .select(
       `
-      *,
+      id,
+      student_id,
+      time_in,
+      time_out,
+      attendance_type,
+      event_id,
+      duration_minutes,
       students!inner (
         id_number,
         first_name,

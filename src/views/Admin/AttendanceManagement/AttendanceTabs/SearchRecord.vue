@@ -32,14 +32,21 @@
 
           <!-- RIGHT SIDE SEARCH -->
           <div class="w-full lg:w-[32%]" style="padding-top: 50px;">
-            <div class="relative group mt-4 lg:mt-0">
-              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <i class="fas fa-search text-slate-300 group-focus-within:text-[#0d2b0f] transition-colors"></i>
+            <form class="mt-4 lg:mt-0" @submit.prevent="searchRecords">
+              <div class="relative group">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <i class="fas fa-search text-slate-300 group-focus-within:text-[#0d2b0f] transition-colors"></i>
+                </div>
+
+                <input v-model="searchQuery" type="text" placeholder="Search by ID, Name, or Program..."
+                  class="w-full bg-white border-2 border-transparent pl-12 pr-4 py-4 rounded-2xl focus:border-[#0d2b0f]/20 focus:ring-4 focus:ring-[#0d2b0f]/5 transition-all outline-none shadow-sm text-sm font-medium" />
               </div>
 
-              <input v-model="searchQuery" type="text" placeholder="Search by ID, Name, or Program..."
-                class="w-full bg-white border-2 border-transparent pl-12 pr-4 py-4 rounded-2xl focus:border-[#0d2b0f]/20 focus:ring-4 focus:ring-[#0d2b0f]/5 transition-all outline-none shadow-sm text-sm font-medium" />
-            </div>
+              <button type="submit" :disabled="loadingStudents"
+                class="mt-3 w-full rounded-xl bg-[#0d2b0f] px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-[#183d1b] disabled:cursor-not-allowed disabled:opacity-60">
+                {{ loadingStudents ? 'Loading Records...' : 'Search Records' }}
+              </button>
+            </form>
           </div>
 
         </div>
@@ -62,7 +69,7 @@
 
               <div class="relative">
                 <label class="text-[10px] font-black uppercase text-[#4a7060] ml-1 mb-2 block">College</label>
-                <button @click="isCollegeOpen = !isCollegeOpen; isProgramOpen = false" type="button"
+                <button @click="toggleCollegeFilter" type="button"
                   class="w-full h-12.5 bg-[#f0f4f1] border border-[#c2d4cb] px-5 rounded-2xl text-sm font-bold text-[#0d2b0f] flex justify-between items-center outline-none focus:border-[#0d2b0f] transition-colors">
                   <span class="truncate pr-2">{{ filters.college === 'All' ? '— College —' : filters.college }}</span>
                   <i class="fas fa-chevron-down transition-transform shrink-0"
@@ -83,7 +90,7 @@
 
               <div class="relative">
                 <label class="text-[10px] font-black uppercase text-[#4a7060] ml-1 mb-2 block">Program</label>
-                <button @click="isProgramOpen = !isProgramOpen; isCollegeOpen = false" type="button"
+                <button @click="toggleProgramFilter" type="button"
                   class="w-full h-12.5 bg-[#f0f4f1] border border-[#c2d4cb] px-5 rounded-2xl text-sm font-bold text-[#0d2b0f] flex justify-between items-center outline-none focus:border-[#0d2b0f] transition-colors">
                   <span class="truncate pr-2">{{ filters.program === 'All' ? '— Program —' : filters.program }}</span>
                   <i class="fas fa-chevron-down transition-transform shrink-0"
@@ -142,7 +149,10 @@
             <div class="px-8 py-6 flex justify-between border-b border-[#d4e4da]">
               <div>
                 <h3 class="font-black text-sm uppercase text-[#0d2b0f]">Registry Database</h3>
-                <p class="text-[10px] text-[#4a7060]">{{ filteredStudents.length }} Records Found</p>
+                <p v-if="studentsLoaded" class="text-[10px] text-[#4a7060]">
+                  {{ filteredStudents.length }} Records Found
+                </p>
+                <p v-else class="text-[10px] text-[#4a7060]">Search or select a filter to load records</p>
               </div>
             </div>
 
@@ -180,6 +190,11 @@
               <div v-if="loadingStudents" class="py-20 flex justify-center">
                 <p class="text-[#4a7060] text-xs font-bold">
                   Loading records... please wait, this might take a while.
+                </p>
+              </div>
+              <div v-else-if="!studentsLoaded" class="py-20 flex justify-center">
+                <p class="text-[#4a7060] text-xs font-bold">
+                  Search or select a filter when you are ready to load student records.
                 </p>
               </div>
               <div v-else-if="filteredStudents.length === 0" class="py-20 flex justify-center">
@@ -241,7 +256,7 @@
 
             <!-- Refreshing overlay -->
             <Transition name="backdrop">
-              <div v-if="refreshing"
+              <div v-if="loadingLogs || refreshing"
                 class="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3">
                 <svg class="spin" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0d2b0f"
                   stroke-width="2.5">
@@ -249,7 +264,9 @@
                   <path d="M1 20v-6h6" />
                   <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                 </svg>
-                <p class="text-xs font-black uppercase tracking-widest text-[#4a7060]">Refreshing data...</p>
+                <p class="text-xs font-black uppercase tracking-widest text-[#4a7060]">
+                  {{ refreshing ? 'Refreshing data...' : 'Loading data...' }}
+                </p>
               </div>
             </Transition>
 
@@ -410,7 +427,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
 import { supabase } from '@/lib/supabase'
 import '@/assets/styles/student-record.css'
@@ -436,9 +453,11 @@ const allStudents = ref<Student[]>([])
 /** Attendance logs — fetched from `attendance_logs` (used for gender breakdown) */
 const attendanceLogs = ref<Student[]>([])
 
-const loadingStudents = ref(true)
-const loadingLogs = ref(true)
+const loadingStudents = ref(false)
+const loadingLogs = ref(false)
 const refreshing = ref(false)
+const studentsLoaded = ref(false)
+const attendanceLogsLoaded = ref(false)
 
 const searchQuery = ref('')
 const isCollegeOpen = ref(false)
@@ -468,6 +487,8 @@ const normalizeCollege = (raw: string | null) => {
 // ─── FETCH: STUDENTS TABLE (Registry) ────────────────────────────────────────
 
 async function fetchStudents() {
+  if (studentsLoaded.value || loadingStudents.value) return
+
   loadingStudents.value = true
 
   const pageSize = 1000
@@ -503,17 +524,19 @@ async function fetchStudents() {
     timeIn: ''
   }))
 
+  studentsLoaded.value = true
   loadingStudents.value = false
 }
 
 // ─── FETCH: ATTENDANCE LOGS (Gender Breakdown) ───────────────────────────────
 
 async function fetchAttendanceLogs(isRefresh = false) {
+  if (loadingLogs.value || (!isRefresh && attendanceLogsLoaded.value)) return
+
   if (isRefresh) {
     refreshing.value = true
-  } else {
-    loadingLogs.value = true
   }
+  loadingLogs.value = true
 
   const pageSize = 1000
   let from = 0
@@ -570,14 +593,28 @@ async function fetchAttendanceLogs(isRefresh = false) {
 
   loadingLogs.value = false
   refreshing.value = false
+  attendanceLogsLoaded.value = true
 }
 
-// ─── LIFECYCLE ───────────────────────────────────────────────────────────────
+// ─── ON-DEMAND DATA LOADING ──────────────────────────────────────────────────
 
-onMounted(() => {
-  fetchStudents()
-  fetchAttendanceLogs()
-})
+function toggleCollegeFilter() {
+  const opening = !isCollegeOpen.value
+  isCollegeOpen.value = opening
+  isProgramOpen.value = false
+  if (opening) void fetchStudents()
+}
+
+function toggleProgramFilter() {
+  const opening = !isProgramOpen.value
+  isProgramOpen.value = opening
+  isCollegeOpen.value = false
+  if (opening) void fetchStudents()
+}
+
+async function searchRecords() {
+  await fetchStudents()
+}
 
 // ─── REGISTRY: FILTERED TABLE ────────────────────────────────────────────────
 
@@ -695,9 +732,10 @@ const genderByCollege = computed(() => {
 
 // ─── GENDER DRAWER CONTROLS ──────────────────────────────────────────────────
 
-function openGenderModal() {
+async function openGenderModal() {
   genderModalOpen.value = true
   expandedColleges.value = new Set()
+  await Promise.all([fetchStudents(), fetchAttendanceLogs()])
 }
 
 function toggleCollege(name: string) {
